@@ -1,0 +1,38 @@
+<html>
+  <head> 
+    <meta charset="utf-8" /> 
+    <title>NEW - My Garage Controller</title> 
+    <link rel="stylesheet" href="//code.jquery.com/mobile/1.2.1/jquery.mobile-1.2.1.min.css" />
+    <script src="//code.jquery.com/jquery-1.8.3.min.js"></script> 
+    <script src="//code.jquery.com/mobile/1.2.1/jquery.mobile-1.2.1.min.js"></script>
+    <script src="date.format.js"></script>    
+    <script src="client.js"></script>
+    <link rel="apple-touch-icon" href="img/closed.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="viewport" content="minimum-scale=1.0, width=device-width, maximum-scale=1.0, user-scalable=no"  />
+  </head> 
+  <body>
+    <div data-role="page">
+      <div data-role="header"> 
+	<h1>NEW - My Garage</h1>
+      </div>
+      <div data-role="content">
+	<div class="content-primary">
+	  <ul id="doorlist" data-role="listview"></ul>
+	</div>
+      </div>
+      <input type="submit" data-inline="true" value="Close All" onclick="return clickCloseAll()">
+      <input type="submit" data-inline="true" value="Logs" onclick="return clickLogs()">
+      <input type="submit" data-inline="true" value="Test Motion" onclick="return clickMotionTest()">
+      <div data-role="content">
+        <p id="log_message"></p>
+      </div>
+      <div data-role="footer" data-position="fixed">
+	<h4>
+	  <div id="uptime" />
+	</h4>
+      </div>	
+    </div>   
+  </body>
+</html>
