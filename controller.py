@@ -374,6 +374,10 @@ class Controller(object):
         self.doors = [Door(x, c) for (x, c) in config['doors'].items()]
         for door in self.doors:
 	    door.state = door.get_state_pin()
+	    if door.state == OPEN:
+		curr_time = getTime()
+  	        self.setOpenState(door, curr_time) 
+		door.tis[OPENING] = curr_time
             door.time_since_last_open = self.getTimeSinceLastOpenFromFile(door.id) 
 	    door.send_open_im = True
     	    self.set_initial_text_msg(door) 
@@ -486,16 +490,19 @@ class Controller(object):
 
 	return message
 
+    def setOpenState(self, door, curr_time):
+	door.tis[door.state] = curr_time
+	door.tis[STILLOPEN] = curr_time
+	door.tis[FORCECLOSE] = curr_time
+	door.send_open_im = True
+
     def door_OPENING(self, door):
 	curr_time = getTime()
 	message = ''
 	if self.getExpiredTime(door.tis.get(door.state), self.time_to_open, curr_time):
 	    self.logger.info("%s %s->%s" % (door.name, door.state, OPEN))
 	    door.state = OPEN
-	    door.tis[door.state] = curr_time
-	    door.tis[STILLOPEN] = curr_time
-	    door.tis[FORCECLOSE] = curr_time
-	    door.send_open_im = True
+  	    self.setOpenState(door, curr_time) 
 	return message
 
     def check_status(self):
@@ -633,9 +640,11 @@ class Controller(object):
         message = None
         for door in self.doors:
 	    if door.get_state_pin() != CLOSED:
-		if door.state != CLOSING and door.state != OPENING:
+		if door.state == CLOSING or door.state == OPENING:
+                    message += door.name + "Closing or Opening, "
+		elif door.state == OPEN:
                     if message == None:
-                    	message = 'Close All: '
+                        message = 'Close All: '
                     message += door.name
                     message += ', '
                     door.toggle_relay()
