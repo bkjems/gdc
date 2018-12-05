@@ -70,24 +70,24 @@ def elapsed_time(total_seconds):
 
     ret = ''
     if year > 0:
-         ret += str(year) + " " + (year == 1 and "yr" or "yrs" ) + ", "
+        ret += str(year) + " " + (year == 1 and "yr" or "yrs" ) + ", "
 
     if days > 0:
-         ret += str(days) + " " + (days == 1 and "day" or "days" ) + ", "
+        ret += str(days) + " " + (days == 1 and "day" or "days" ) + ", "
 
     if total_seconds < 3600:
-         if total_seconds <= 60:
-             ret += "%ds" %(total_seconds)
-         else: 
-             ret += "%dm" %(minutes)
-             if seconds > 0:
-                 ret += " %ds" %(seconds)
+        if total_seconds <= 60:
+            ret += "%ds" %(total_seconds)
+        else: 
+            ret += "%dm" %(minutes)
+            if seconds > 0:
+                ret += " %ds" %(seconds)
     elif total_seconds < 86400:
-         ret += "%d%s" %(hours, (hours == 1 and "hr" or  "hrs"))
-         if minutes > 0 or seconds > 0:
-             ret += " %02d:%02d" %(minutes, seconds)
+        ret += "%d%s" %(hours, (hours == 1 and "hr" or  "hrs"))
+        if minutes > 0 or seconds > 0:
+            ret += " %02d:%02d" %(minutes, seconds)
     else: 
-         ret += "%02d:%02d" %(hours, minutes)
+        ret += "%02d:%02d" %(hours, minutes)
 
     return ret
 
@@ -112,7 +112,7 @@ class CloseAllHandler(Resource):
             return ''
         else:
             return 'All doors are closed.'
-	
+
 class LogHandler(Resource):
     isLeaf = True
 
@@ -157,7 +157,7 @@ class ClickMotionTestHandler(Resource):
         self.controller = controller
 
     def render(self, request):
-    	self.controller.motion('testpin')
+        self.controller.motion('testpin')
 
 class ConfigHandler(Resource):
     isLeaf = True
@@ -169,7 +169,7 @@ class ConfigHandler(Resource):
         request.setHeader('Content-Type', 'application/json')
 
         return json.dumps([(d.id, d.name, d.state, d.tis.get(d.state)) 
-                            for d in self.controller.doors])
+                           for d in self.controller.doors])
 
 class UptimeHandler(Resource):
     isLeaf = True
@@ -177,19 +177,19 @@ class UptimeHandler(Resource):
         Resource.__init__(self)
 
     def uptime(self):
-     try:
-         f = open( "/proc/uptime" )
-         contents = f.read().split()
-         f.close()
-     except:
-        return "Cannot open uptime file: /proc/uptime"
+        try:
+            f = open( "/proc/uptime" )
+            contents = f.read().split()
+            f.close()
+        except:
+            return "Cannot open uptime file: /proc/uptime"
 
-     return elapsed_time(float(contents[0]))
+        return elapsed_time(float(contents[0]))
 
     def render(self,request):
         request.setHeader('Content-Type', 'application/json')
         return json.dumps("Uptime: " + self.uptime())
-    
+
 class UpdateHandler(Resource):
     isLeaf = True
     def __init__(self, controller):
@@ -257,14 +257,14 @@ class Door(object):
         self.state_pin = config['state_pin']
         self.test_state_pin = CLOSED 
         self.state_pin_closed_value = config['closed_value']
-	self.tis = {
-	    CLOSED:0,
-	    OPEN:0,
-	    OPENING:0,
-	    CLOSING:0,
-	    STILLOPEN:0,
-	    FORCECLOSE:0 
-	}
+        self.tis = {
+            CLOSED:0,
+            OPEN:0,
+            OPENING:0,
+            CLOSING:0,
+            STILLOPEN:0,
+            FORCECLOSE:0 
+        }
         self.setup_gpio() 
 
     def setup_gpio(self):
@@ -281,11 +281,11 @@ class Door(object):
         self.logger = logging.getLogger(__name__)
 
         if isDebugging:
-	    return self.test_state_pin
-	else:
-	    rv = gpio.input(self.state_pin)
-	    if rv == self.state_pin_closed_value:
-	        return CLOSED 
+            return self.test_state_pin
+        else:
+            rv = gpio.input(self.state_pin)
+            if rv == self.state_pin_closed_value:
+                return CLOSED 
 
         return OPEN
 
@@ -293,31 +293,31 @@ class Door(object):
     #
     def toggle_relay(self):
         if isDebugging:
-	    self.test_state_pin = CLOSED if self.test_state_pin == OPEN else OPEN 
-	    return
+            self.test_state_pin = CLOSED if self.test_state_pin == OPEN else OPEN 
+            return
 
         gpio.output(self.relay_pin, False)
         time.sleep(0.2)
         gpio.output(self.relay_pin, True)
 
-   
+
 class Controller(object):
     def __init__(self, config, debugging=False):
         global isDebugging
-	isDebugging = debugging 
+        isDebugging = debugging 
         self.config = config
 
         # read args
         self.port = config['site']['port'] 
         for arg in sys.argv:
             if str(arg) == 'debug':
-		# ex. python controller.py debug -v
+                # ex. python controller.py debug -v
                 isDebugging = True 
 
             elif str(arg).startswith('port='):
                 self.port = str(sys.argv[2]).split('=')[1]
 
-	# read config
+        # read config
         c = self.config['config']
         self.use_https = c['use_https']
         self.use_auth= c['use_auth']
@@ -340,7 +340,7 @@ class Controller(object):
         self.on_days_of_week = c['on_days_of_week']
         self.alert_type = c['alert_type']
 
-	# set up fcache to log last time garage door was opened
+        # set up fcache to log last time garage door was opened
         self.fileCache = FileCache(gfileCache, flag='cs')
 
         # set up logging
@@ -349,17 +349,17 @@ class Controller(object):
         log_level = logging.INFO
         self.debugMsg = "Debugging=%s" % isDebugging
         if isDebugging:
-           logging.basicConfig(datefmt=date_fmt, format=log_fmt, level=log_level)
-           logger = logging.getLogger(__name__)
+            logging.basicConfig(datefmt=date_fmt, format=log_fmt, level=log_level)
+            logger = logging.getLogger(__name__)
         else:
             logging.basicConfig(datefmt=date_fmt, format=log_fmt, level=log_level, filename=self.file_name)
             gpio.setwarnings(False)
             gpio.cleanup()
             gpio.setmode(gpio.BCM)
 
-    	# Banner
+        # Banner
         logging.info("<---Garage Controller starting (port=%s %s) --->" % (self.port, self.debugMsg))
-  	
+
         self.updateHandler = UpdateHandler(self)
 
         self.initMsg = ""
@@ -370,19 +370,19 @@ class Controller(object):
             gpio.add_event_detect(self.motion_pin, gpio.RISING, callback=self.motion, bouncetime=300)
             logging.info("Motion pin = %s" % (self.motion_pin))
 
-	# setup Doors from config file
+        # setup Doors from config file
         self.doors = [Door(x, c) for (x, c) in config['doors'].items()]
         for door in self.doors:
-	    door.state = door.get_state_pin()
-	    if door.state == OPEN:
-		curr_time = getTime()
-  	        self.setOpenState(door, curr_time) 
-		door.tis[OPENING] = curr_time
-            door.time_since_last_open = self.getTimeSinceLastOpenFromFile(door.id) 
-	    door.send_open_im = True
-    	    self.set_initial_text_msg(door) 
+            door.state = door.get_state_pin()
+            if door.state == OPEN:
+                curr_time = getTime()
+                self.setOpenState(door, curr_time) 
+                door.tis[OPENING] = curr_time
+            door.send_open_im = True
+            door.tslo = self.getTimeSinceLastOpenFromFile(door.id) 
+            self.set_initial_text_msg(door) 
 
-	# setup alerts
+        # setup alerts
         if self.alert_type == 'smtp':
             self.use_smtp = False
             smtp_params = ("smtphost", "smtpport", "smtp_tls", "username", "password", "to_email")
@@ -396,13 +396,12 @@ class Controller(object):
             logging.info("No alerts configured")
 
         if isDebugging:
-	    print self.initMsg
+            print self.initMsg
         else:
-	    self.send_it(self.initMsg) 
+            self.send_it(self.initMsg) 
 
     def setTimeSinceLastOpenFromFile(self, doorName):
         self.fileCache[doorName] = getTime()
-        return(self.getTimeSinceLastOpenFromFile(doorName))
 
     # get time since last open, if doesn't exist default to current time and return value
     def getTimeSinceLastOpenFromFile(self, doorName):
@@ -421,11 +420,11 @@ class Controller(object):
             curr_time = getTime()
             for d in self.doors:
                 if d.state == OPEN and d.send_open_im == False:
-        	    if isDebugging:
+                    if isDebugging:
                         logging.info("Motion detected, reset %s time" % (d.name))
-	    	    d.tis[d.state] = curr_time
-	    	    d.tis[STILLOPEN] = curr_time
-	    	    d.tis[FORCECLOSE] = curr_time
+                    d.tis[d.state] = curr_time
+                    d.tis[STILLOPEN] = curr_time
+                    d.tis[FORCECLOSE] = curr_time
                     d.send_open_im = True
 
     def set_initial_text_msg(self, door):
@@ -437,73 +436,77 @@ class Controller(object):
         self.initMsg += "%s:%s" % (door.name, door.get_state_pin())
 
     def getExpiredTime(self, tis, alert_time, curr_time):
-	if alert_time <= 0:
-	    return True
+        if alert_time <= 0:
+            return True
 
-	# add alert_time secs to current time
-	dt_time_in_state  = datetime.datetime.fromtimestamp(tis) # convert time to datetime
-	newDateTime = dt_time_in_state  + timedelta(seconds=alert_time) 
-	return curr_time > time.mktime(newDateTime.timetuple()) # convert to epoch time
+        # add alert_time secs to current time
+        dt_time_in_state  = datetime.datetime.fromtimestamp(tis) # convert time to datetime
+        newDateTime = dt_time_in_state  + timedelta(seconds=alert_time) 
+        return curr_time > time.mktime(newDateTime.timetuple()) # convert to epoch time
 
     def door_CLOSED(self, door, etime):
-	message = ''
-	curr_time = getTime()
+        message = ''
+        curr_time = getTime()
 
-	time_since_last_open_msg = "%s" % (elapsed_time(int(curr_time - door.time_since_last_open)))
-	self.logger.info("%s %s->%s" % (door.name, door.state, CLOSED))
-	door.time_since_last_open = self.setTimeSinceLastOpenFromFile(door.id)
-	door.state = CLOSED 
-	ct = curr_time - door.tis.get(OPENING) 
-	etime = elapsed_time(int(ct))
-	door.tis[door.state] = curr_time 
-	if door.send_open_im == False:
-            message = '%s is %s %s previous (%s)' % (door.name, door.state, etime, time_since_last_open_msg)
-	else:
-            message = '%s was opened and %s after %s previous (%s)' % (door.name, door.state, etime, time_since_last_open_msg) 
-	return message
+        last_open_msg = "%s" % (elapsed_time(int(curr_time - door.tslo)))
+
+        self.logger.info("%s %s->%s" % (door.name, door.state, CLOSED))
+        self.setTimeSinceLastOpenFromFile(door.id)
+        door.tslo = self.getTimeSinceLastOpenFromFile(door.id)
+        door.state = CLOSED 
+
+        ct = curr_time - door.tis.get(OPENING) 
+        etime = elapsed_time(int(ct))
+        door.tis[door.state] = curr_time 
+
+        if door.send_open_im == False:
+            message = '%s is %s %s previous (%s)' % (door.name, door.state, etime, last_open_msg)
+        else:
+            message = '%s was opened and %s after %s previous (%s)' % (door.name, door.state, etime, last_open_msg) 
+        return message
 
     def door_CLOSING(self, door):
-	message = ''
-	curr_time = getTime()        
-	etime = elapsed_time(int(curr_time - door.tis.get(door.state)))
-	if self.getExpiredTime(door.tis.get(door.state), self.time_to_close, curr_time):
-    	    return self.door_CLOSED(door, etime) 
-	return message
+        message = ''
+        curr_time = getTime()        
+        etime = elapsed_time(int(curr_time - door.tis.get(door.state)))
+        if self.getExpiredTime(door.tis.get(door.state), self.time_to_close, curr_time):
+            return self.door_CLOSED(door, etime) 
+        return message
 
     def door_OPEN(self, door):
-	message = '' 
-	curr_time = getTime()
-	etime = elapsed_time(int(curr_time - door.tis.get(door.state))) 
+        message = '' 
+        curr_time = getTime()
+        etime = elapsed_time(int(curr_time - door.tis.get(door.state))) 
 
-	if door.send_open_im == True and self.getExpiredTime(door.tis.get(door.state), self.time_to_report_open, curr_time):
-	    door.send_open_im = False
+        if door.send_open_im == True and self.getExpiredTime(door.tis.get(door.state), self.time_to_report_open, curr_time):
+            door.send_open_im = False
             message = '%s is %s' % (door.name, door.state)
 
-	if self.getExpiredTime(door.tis.get(STILLOPEN), self.time_to_report_still_open, curr_time):
-	    door.tis[STILLOPEN] = curr_time 
+        if self.getExpiredTime(door.tis.get(STILLOPEN), self.time_to_report_still_open, curr_time):
+            door.tis[STILLOPEN] = curr_time 
             message = '%s is still %s' % (door.name, door.state)
 
-	if self.time_to_force_close != None and self.getExpiredTime(door.tis.get(FORCECLOSE), self.time_to_force_close, curr_time):
-	    door.tis[FORCECLOSE] = curr_time
+        if self.time_to_force_close != None and self.getExpiredTime(door.tis.get(FORCECLOSE), self.time_to_force_close, curr_time):
+            door.tis[FORCECLOSE] = curr_time
             message = '%s force closed %s->%s %s' % (door.name, door.state, CLOSED, etime)
             door.toggle_relay()
 
-	return message
+        return message
 
     def setOpenState(self, door, curr_time):
-	door.tis[door.state] = curr_time
-	door.tis[STILLOPEN] = curr_time
-	door.tis[FORCECLOSE] = curr_time
-	door.send_open_im = True
+        door.tis[door.state] = curr_time
+        door.tis[STILLOPEN] = curr_time
+        door.tis[FORCECLOSE] = curr_time
+        door.send_open_im = True
 
     def door_OPENING(self, door):
-	curr_time = getTime()
-	message = ''
-	if self.getExpiredTime(door.tis.get(door.state), self.time_to_open, curr_time):
-	    self.logger.info("%s %s->%s" % (door.name, door.state, OPEN))
-	    door.state = OPEN
-  	    self.setOpenState(door, curr_time) 
-	return message
+        curr_time = getTime()
+        message = ''
+        if self.getExpiredTime(door.tis.get(door.state), self.time_to_open, curr_time):
+            self.logger.info("%s %s->%s" % (door.name, door.state, OPEN))
+            door.state = OPEN
+            self.setOpenState(door, curr_time) 
+        return message
 
     def check_status(self):
         for door in self.doors:
@@ -511,29 +514,29 @@ class Controller(object):
 
     def check_door_status(self, door):
         self.logger = logging.getLogger(__name__)
-	message ='' 
-	curr_time = getTime()
-	pin_state = door.get_state_pin()
+        message ='' 
+        curr_time = getTime()
+        pin_state = door.get_state_pin()
 
-	if pin_state != door.state:
-	    if door.state != OPENING and door.state != CLOSING: 
-	    	door.state = OPENING if door.state == CLOSED else CLOSING
-		door.tis[door.state] = curr_time
-		if pin_state == CLOSED:
-		    pin_state = OPEN
-	        self.logger.info("*%s %s->%s" % (door.name, pin_state, door.state))
+        if pin_state != door.state:
+            if door.state != OPENING and door.state != CLOSING: 
+                door.state = OPENING if door.state == CLOSED else CLOSING
+                door.tis[door.state] = curr_time
+                if pin_state == CLOSED:
+                    pin_state = OPEN
+                self.logger.info("*%s %s->%s" % (door.name, pin_state, door.state))
 
-	if door.state == OPENING:
-	    message = self.door_OPENING(door)
-    
-	elif (door.state == CLOSING):
-	    message = self.door_CLOSING(door)
-	     
-	elif door.state == OPEN:
-	    message = self.door_OPEN(door)
+        if door.state == OPENING:
+            message = self.door_OPENING(door)
 
-	if message != "":
-       	    self.logger.info(message)
+        elif (door.state == CLOSING):
+            message = self.door_CLOSING(door)
+
+        elif door.state == OPEN:
+            message = self.door_OPEN(door)
+
+        if message != "":
+            self.logger.info(message)
             self.send_it(message)
 
         self.updateHandler.handle_updates()
@@ -556,7 +559,7 @@ class Controller(object):
         to_min = int(self.to_time[-2:])
 
         return datetime.time(from_hr,from_min) <= curr_datetime_time <= datetime.time(to_hr,to_min) 
-    
+
     def can_send_alert(self):
         return self.use_alerts and self.is_day_of_week(getDateTime().weekday()) and self.is_time_between(getDateTime().time()) 
 
@@ -592,15 +595,15 @@ class Controller(object):
                     mg = MIMEText(msg)
                     server.sendmail('from', config["to_email"], mg.as_string())
         except smtplib.SMTPException as e:
-          self.logger.error("Error: unable to send gmail text %s", e)
+            self.logger.error("Error: unable to send gmail text %s", e)
         except socket.gaierror as ge:
-          self.logger.error("gaierror:%s", ge)
-          return
+            self.logger.error("gaierror:%s", ge)
+            return
         except socket.error as se:
-          self.logger.error("socket error:%s", se)
-          return
+            self.logger.error("socket error:%s", se)
+            return
         except:
-          self.logger.error("Main Exception: %s", sys.exc_info()[0])
+            self.logger.error("Main Exception: %s", sys.exc_info()[0])
         finally:
             try:
                 server.quit()
@@ -614,11 +617,11 @@ class Controller(object):
         config = self.config['alerts']['pushbullet']
         conn = httplib.HTTPSConnection("api.pushbullet.com:443")
         conn.request("POST", "/v2/pushes",
-             json.dumps({
-                 "type": "note",
+                     json.dumps({
+                         "type": "note",
                  "title": title,
                  "body": message,
-             }), {'Authorization': 'Bearer ' + config['access_token'], 'Content-Type': 'application/json'})
+                 }), {'Authorization': 'Bearer ' + config['access_token'], 'Content-Type': 'application/json'})
         response = conn.getresponse().read()
         logging.info(response)
         #door.pb_iden = json.loads(response)['iden']
@@ -627,22 +630,23 @@ class Controller(object):
         config = self.config['alerts']['pushover']
         conn = httplib.HTTPSConnection("api.pushover.net:443")
         conn.request("POST", "/1/messages.json",
-                urllib.urlencode({
-                    "token": config['api_key'],
+                     urllib.urlencode({
+                         "token": config['api_key'],
                     "user": config['user_key'],
                     "title": title,
                     "message": message,
-                }), { "Content-type": "application/x-www-form-urlencoded" })
+                    }), { "Content-type": "application/x-www-form-urlencoded" })
         conn.getresponse()
 
     def close_all(self):
         self.logger = logging.getLogger(__name__)
-        message = None
+        message = '' 
         for door in self.doors:
-	    if door.get_state_pin() != CLOSED:
-		if door.state == CLOSING or door.state == OPENING:
-                    message += door.name + "Closing or Opening, "
-		elif door.state == OPEN:
+            print door.get_state_pin()
+            if door.get_state_pin() != CLOSED:
+                if door.state == CLOSING or door.state == OPENING:
+                    message += door.name + " Closing or Opening, " 
+                elif door.state == OPEN:
                     if message == None:
                         message = 'Close All: '
                     message += door.name
@@ -650,10 +654,10 @@ class Controller(object):
                     door.toggle_relay()
                     time.sleep(0.2) 
 
-	if message != None:
+        if message != '':
             self.logger.info(message)
             return True
-	else:
+        else:
             return False
 
     def get_updates(self, lastupdate):
@@ -674,7 +678,7 @@ class Controller(object):
         root.putChild('clk', ClickHandler(self))
         root.putChild('mot', ClickMotionTestHandler(self))
         task.LoopingCall(self.check_status).start(1.0)
-        
+
         site = server.Site(root)
         reactor.listenTCP(int(self.port), site)  # @UndefinedVariable
         reactor.run()
