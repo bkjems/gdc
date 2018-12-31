@@ -23,7 +23,7 @@ class Test(unittest.TestCase):
 	door = c.getDoor("right")
 	c.time_to_report_open= 1
 	c.time_to_close = 0
-	c.toggle(door.id)
+	door.toggle_relay()
 	c.check_status() 
 	time.sleep(4)
 	c.check_status() 
@@ -33,7 +33,7 @@ class Test(unittest.TestCase):
 	c = self.setup() 
 	door = c.getDoor("left")
 	c.time_to_open = 0
-	c.toggle(door.id)
+	door.toggle_relay()
 	time.sleep(2)
 	c.check_status()
         self.assertEquals(door.state, "open")
@@ -44,11 +44,11 @@ class Test(unittest.TestCase):
 	c.time_to_close= 0
 	c.time_to_open = 0
 
-	c.toggle(door.id)
+	door.toggle_relay()
 	c.check_status()
         self.assertEquals(door.state, "open")
 
-	c.toggle(door.id)
+	door.toggle_relay()
 	c.check_status()
         self.assertEquals(door.state, "closed")
 
@@ -57,7 +57,7 @@ class Test(unittest.TestCase):
 	door = c.getDoor("left")
 	door.state = "closed" 
 	c.time_to_open=5
-	c.toggle(door.id)
+	door.toggle_relay()
 	c.check_door_status(door)
         self.assertEquals(door.state, "opening")
  
@@ -67,7 +67,7 @@ class Test(unittest.TestCase):
 	door.state = "open"
 	door.test_state_pin= "open"
 	door.time_to_close= 5
-	c.toggle(door.id)
+	door.toggle_relay()
 	c.check_door_status(door)
         self.assertEquals(door.state, "closing")
 
