@@ -94,7 +94,7 @@ def elapsed_time(total_seconds):
 
 class WEEKDAYS(Enum): 
     """Enum for days of the week."""
-    Mon = 0 
+    Mon= 0 
     Tue = 1 
     Wed = 2 
     Thu = 3 
