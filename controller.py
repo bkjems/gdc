@@ -322,7 +322,7 @@ class Controller(object):
         # read config
         c = self.config['config']
         self.use_https = c['use_https']
-        self.use_auth= c['use_auth']
+        self.use_auth = c['use_auth']
         self.use_alerts = c['use_alerts']
         self.motion_pin = c['motion_pin']
         self.file_name = c['logfile']
