@@ -50,12 +50,13 @@ global FORCECLOSE
 FORCECLOSE = 'forceclose'
 
 def getTime():
-    return time.time();
+    return time.time() 
 
 def getDateTime():
-    return datetime.datetime.now();
+    return datetime.datetime.now() 
 
 def elapsed_time(total_seconds):
+    """Formats total seconds into a human readable format."""
     # Helper vars:
     MINUTE  = 60
     HOUR    = MINUTE * 60
@@ -77,30 +78,33 @@ def elapsed_time(total_seconds):
 
     if total_seconds < 3600:
         if total_seconds <= 60:
-            ret += "%ds" %(total_seconds)
+            ret += "%ds" % (total_seconds)
         else: 
-            ret += "%dm" %(minutes)
+            ret += "%dm" % (minutes)
             if seconds > 0:
-                ret += " %ds" %(seconds)
+                ret += " %ds" % (seconds)
     elif total_seconds < 86400:
-        ret += "%d%s" %(hours, (hours == 1 and "hr" or  "hrs"))
+        ret += "%d%s" % (hours, (hours == 1 and "hr" or  "hrs"))
         if minutes > 0 or seconds > 0:
-            ret += " %02d:%02d" %(minutes, seconds)
+            ret += " %02d:%02d" % (minutes, seconds)
     else: 
-        ret += "%02d:%02d" %(hours, minutes)
+        ret += "%02d:%02d" % (hours, minutes)
 
     return ret
 
 class WEEKDAYS(Enum): 
-    Mon= 0 
-    Tue= 1 
-    Wed= 2 
-    Thu= 3 
-    Fri= 4 
-    Sat= 5 
-    Sun= 6
+    """Enum for days of the week."""
+    Mon = 0 
+    Tue = 1 
+    Wed = 2 
+    Thu = 3 
+    Fri = 4 
+    Sat = 5 
+    Sun = 6
 
 class CloseAllHandler(Resource):
+    """Closes all door."""
+
     isLeaf = True
 
     def __init__ (self, controller):
@@ -186,7 +190,7 @@ class UptimeHandler(Resource):
 
         return elapsed_time(float(contents[0]))
 
-    def render(self,request):
+    def render(self, request):
         request.setHeader('Content-Type', 'application/json')
         return json.dumps("Uptime: " + self.uptime())
 
@@ -240,7 +244,6 @@ class UpdateHandler(Resource):
         if updates != []:
             return self.format_updates(request, updates)
 
-
         request.notifyFinish().addErrback(lambda x: self.delayed_requests.remove(request))
         self.delayed_requests.append(request)
 
@@ -275,9 +278,8 @@ class Door(object):
         gpio.setup(self.state_pin, gpio.IN, pull_up_down=gpio.PUD_UP)
         gpio.output(self.relay_pin, True)
 
-    # returns OPEN or CLOSED for a given garages door state pin
-    #
     def get_state_pin(self):
+        """returns OPEN or CLOSED for a given garages door state pin"""
         self.logger = logging.getLogger(__name__)
 
         if isDebugging:
@@ -289,9 +291,9 @@ class Door(object):
 
         return OPEN
 
-    # This gets hit from the web page to open or close garage door
-    #
     def toggle_relay(self):
+    	"""This gets hit from the web page to open or close garage door"""
+
         if isDebugging:
             self.test_state_pin = CLOSED if self.test_state_pin == OPEN else OPEN 
             return
@@ -345,7 +347,7 @@ class Controller(object):
 
         # set up logging
         log_fmt = '%(asctime)s %(levelname)-8s %(message)s'
-        date_fmt='%a, %b %d %Y %H:%M:%S' 
+        date_fmt = '%a, %b %d %Y %H:%M:%S' 
         log_level = logging.INFO
         self.debugMsg = "Debugging=%s" % isDebugging
         if isDebugging:
@@ -403,8 +405,9 @@ class Controller(object):
     def setTimeSinceLastOpenFromFile(self, doorName):
         self.fileCache[doorName] = getTime()
 
-    # get time since last open, if doesn't exist default to current time and return value
     def getTimeSinceLastOpenFromFile(self, doorName):
+    	"""get time since last open, if doesn't exist default to current time and return value"""
+
         return(self.fileCache.setdefault(doorName, getTime()))
 
     def getDoor(self, door_id):
@@ -413,9 +416,9 @@ class Controller(object):
                 return door
         return None
 
-    # motion detected, reset time_in_state to the current time
-    # for all open doors, after the "open" message IM has been send (send=False)
     def motion(self, pin):
+	"""motion detected, reset time_in_state to the current time for all open doors, after the "open" message IM has been send (send=False)"""
+
         if pin != None:
             curr_time = getTime()
             for d in self.doors:
@@ -514,7 +517,7 @@ class Controller(object):
 
     def check_door_status(self, door):
         self.logger = logging.getLogger(__name__)
-        message ='' 
+        message = '' 
         curr_time = getTime()
         pin_state = door.get_state_pin()
 
@@ -524,7 +527,7 @@ class Controller(object):
                 door.tis[door.state] = curr_time
                 if pin_state == CLOSED:
                     pin_state = OPEN
-                self.logger.info("*%s %s->%s" % (door.name, pin_state, door.state))
+                self.logger.info("%s %s->%s" % (door.name, pin_state, door.state))
 
         if door.state == OPENING:
             message = self.door_OPENING(door)
@@ -541,8 +544,9 @@ class Controller(object):
 
         self.updateHandler.handle_updates()
 
-    # Return the day of the week as an integer, where Monday is 0 and Sunday is 6.
     def is_day_of_week(self, day_of_week_num):
+    	"""Return the day of the week as an integer, where Monday is 0 and Sunday is 6."""
+
         if self.on_days_of_week == '':
             return True
 
@@ -558,7 +562,7 @@ class Controller(object):
         to_hr = int(self.to_time[:2])
         to_min = int(self.to_time[-2:])
 
-        return datetime.time(from_hr,from_min) <= curr_datetime_time <= datetime.time(to_hr,to_min) 
+        return datetime.time(from_hr, from_min) <= curr_datetime_time <= datetime.time(to_hr, to_min) 
 
     def can_send_alert(self):
         return self.use_alerts and self.is_day_of_week(getDateTime().weekday()) and self.is_time_between(getDateTime().time()) 
@@ -575,15 +579,16 @@ class Controller(object):
     def send_text(self, msg):
         self.logger = logging.getLogger(__name__)
 
-        msg += time.strftime(" %b %d %H:%M",time.localtime(time.time()))
+        msg += time.strftime(" %b %d %H:%M", time.localtime(time.time()))
         if isDebugging:
-            logging.info("SM - %s" % (msg))
             return
 
         # When restarting each morning at 4am, don't send init msg if between 3:58 - 4:05am
         raw_now = datetime.datetime.now().time()
-        if datetime.time(3,58) <= raw_now <= datetime.time(4,5):
+        if datetime.time(3, 58) <= raw_now <= datetime.time(4, 5):
             return
+
+        logging.info("SM - %s" % (msg))
 
         try:
             if self.use_smtp:
