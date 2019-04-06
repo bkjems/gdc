@@ -347,7 +347,7 @@ class Controller(object):
 
         # set up logging
         log_fmt = '%(asctime)s %(levelname)-8s %(message)s'
-        date_fmt = '%a, %b %d %Y %H:%M:%S' 
+        date_fmt = '%a, %m/%d/%y %H:%M:%S' 
         log_level = logging.INFO
         self.debugMsg = "Debugging=%s" % isDebugging
         if isDebugging:
@@ -400,6 +400,7 @@ class Controller(object):
         if isDebugging:
             print self.initMsg
         else:
+            logging.info(self.initMsg)
             self.send_it(self.initMsg) 
 
     def setTimeSinceLastOpenFromFile(self, doorName):
@@ -453,7 +454,7 @@ class Controller(object):
 
         last_open_msg = "%s" % (elapsed_time(int(curr_time - door.tslo)))
 
-        self.logger.info("%s %s->%s" % (door.name, door.state, CLOSED))
+        #self.logger.info("%s %s->%s" % (door.name, door.state, CLOSED))
         self.setTimeSinceLastOpenFromFile(door.id)
         door.tslo = self.getTimeSinceLastOpenFromFile(door.id)
         door.state = CLOSED 
@@ -506,7 +507,7 @@ class Controller(object):
         curr_time = getTime()
         message = ''
         if self.getExpiredTime(door.tis.get(door.state), self.time_to_open, curr_time):
-            self.logger.info("%s %s->%s" % (door.name, door.state, OPEN))
+            #self.logger.info("%s %s->%s" % (door.name, door.state, OPEN))
             door.state = OPEN
             self.setOpenState(door, curr_time) 
         return message
@@ -527,7 +528,7 @@ class Controller(object):
                 door.tis[door.state] = curr_time
                 if pin_state == CLOSED:
                     pin_state = OPEN
-                self.logger.info("%s %s->%s" % (door.name, pin_state, door.state))
+                #self.logger.info("%s %s->%s" % (door.name, pin_state, door.state))
 
         if door.state == OPENING:
             message = self.door_OPENING(door)
@@ -588,7 +589,7 @@ class Controller(object):
         if datetime.time(3, 58) <= raw_now <= datetime.time(4, 5):
             return
 
-        logging.info("SM - %s" % (msg))
+        #logging.info("SM - %s" % (msg))
 
         try:
             if self.use_smtp:
