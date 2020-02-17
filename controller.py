@@ -12,6 +12,7 @@ import logging
 import datetime
 import sys
 
+from twisted.internet import ssl
 from twisted.internet import task
 from twisted.internet import reactor
 from twisted.web import server
@@ -29,7 +30,7 @@ from fcache.cache import FileCache
 
 # global
 gfileCache = 'garageCache'
-isDebugging = False
+isDebugging = False 
 
 global CLOSED
 CLOSED = 'closed'
@@ -463,10 +464,11 @@ class Controller(object):
         etime = elapsed_time(int(ct))
         door.tis[door.state] = curr_time 
 
+        cur_dt = time.strftime("%H:%M:%S", time.localtime(time.time()))
         if door.send_open_im == False:
-            message = '%s is %s %s previous (%s)' % (door.name, door.state, etime, last_open_msg)
+            message = '%s was %s at %s (%s) away for(%s)' % (door.name, door.state, cur_dt, etime, last_open_msg)
         else:
-            message = '%s was opened and %s after %s previous (%s)' % (door.name, door.state, etime, last_open_msg) 
+            message = '%s was opened and %s at %s (%s) away for(%s)' % (door.name, door.state, cur_dt, etime, last_open_msg) 
         return message
 
     def door_CLOSING(self, door):
@@ -481,18 +483,19 @@ class Controller(object):
         message = '' 
         curr_time = getTime()
         etime = elapsed_time(int(curr_time - door.tis.get(door.state))) 
+        cur_dt = time.strftime("%H:%M:%S", time.localtime(time.time()))
 
         if door.send_open_im == True and self.getExpiredTime(door.tis.get(door.state), self.time_to_report_open, curr_time):
             door.send_open_im = False
-            message = '%s is %s' % (door.name, door.state)
+            message = '%s is %s at %s' % (door.name, door.state, cur_dt)
 
         if self.getExpiredTime(door.tis.get(STILLOPEN), self.time_to_report_still_open, curr_time):
             door.tis[STILLOPEN] = curr_time 
-            message = '%s is still %s' % (door.name, door.state)
+            message = '%s is still %s at %s' % (door.name, door.state, cur_dt)
 
         if self.time_to_force_close != None and self.getExpiredTime(door.tis.get(FORCECLOSE), self.time_to_force_close, curr_time):
             door.tis[FORCECLOSE] = curr_time
-            message = '%s force closed %s->%s %s' % (door.name, door.state, CLOSED, etime)
+            message = '%s force closed %s->%s at %s (%s)' % (door.name, door.state, CLOSED, cur_dt, etime)
             door.toggle_relay()
 
         return message
@@ -526,8 +529,8 @@ class Controller(object):
             if door.state != OPENING and door.state != CLOSING: 
                 door.state = OPENING if door.state == CLOSED else CLOSING
                 door.tis[door.state] = curr_time
-                if pin_state == CLOSED:
-                    pin_state = OPEN
+                #if pin_state == CLOSED:
+                #    pin_state = OPEN
                 #self.logger.info("%s %s->%s" % (door.name, pin_state, door.state))
 
         if door.state == OPENING:
@@ -580,7 +583,6 @@ class Controller(object):
     def send_text(self, msg):
         self.logger = logging.getLogger(__name__)
 
-        msg += time.strftime(" %b %d %H:%M", time.localtime(time.time()))
         if isDebugging:
             return
 
@@ -614,10 +616,16 @@ class Controller(object):
             try:
                 server.quit()
             except smtplib.SMTPServerDisconnected as sd:
-                self.logger.error("Error: .quit() failed %s", sd)
+                self.logger.error("sd Error: .quit() failed %s", sd)
                 server.close()
+            except smtplib.SMTPException as se1:
+                self.logger.error("se1 Exception Error: .quit() failed %s", se1)
+            except smtplib.SMTPResponseException as se2:
+                self.logger.error("se2 smtp Exception Error: .quit() failed %s", se2)
+            except UnboundLocalException as ule:
+                self.logger.error("UnboundLocalException Error: .quit() failed %s", ule)
             except:
-                self.logger.error("Exception: %s", sys.exc_info()[0])
+                self.logger.error("final Exception: %s", sys.exc_info()[0])
 
     def send_pushbullet(self, title, message):
         config = self.config['alerts']['pushbullet']
@@ -674,6 +682,13 @@ class Controller(object):
                 updates.append((d.id, d.state, timeinstate))
         return updates
 
+    def get_config_with_default(self, config, param, default):
+	if not config:
+	    return default
+	if not param in config:
+	    return default
+	return config[param]
+
     def run(self):
         root = File('www')
         root.putChild('upd', self.updateHandler)
@@ -686,8 +701,13 @@ class Controller(object):
         task.LoopingCall(self.check_status).start(1.0)
 
         site = server.Site(root)
-        reactor.listenTCP(int(self.port), site)  # @UndefinedVariable
-        reactor.run()
+	if not self.get_config_with_default(self.config['config'], 'use_https', False):
+    	    reactor.listenTCP(self.config['site']['port'], site)  # @UndefinedVariable
+    	    reactor.run()  # @UndefinedVariable
+	else:
+    	    sslContext = ssl.DefaultOpenSSLContextFactory(self.config['site']['ssl_key'], self.config['site']['ssl_cert'])
+    	    reactor.listenSSL(self.config['site']['port_secure'], site, sslContext)  # @UndefinedVariable
+            reactor.run()  # @UndefinedVariable
 
 if __name__ == '__main__':
     config_file = open('config.json')
