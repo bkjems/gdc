@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Software to monitor and control garage doors via a raspberry pi."""
+"""6/4 Software to monitor and control garage doors via a raspberry pi."""
 
 import time
 import smtplib
