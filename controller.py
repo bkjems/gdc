@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 """Software to monitor and control garage doors via a raspberry pi."""
 
-import time, syslog, uuid
+import time
 import smtplib
 import RPi.GPIO as gpio
 import json
 import httplib
 import urllib
-import subprocess
 import logging
+import logging.handlers
 import datetime
 import sys
 
@@ -21,9 +21,10 @@ from twisted.web.resource import Resource, IResource
 from zope.interface import implements
 from email.mime.text import MIMEText
 from enum import Enum
+from time import strftime
 from datetime import date
 from datetime import timedelta
-from twisted.cred import checkers, portal
+from twisted.cred import portal
 from twisted.web.guard import HTTPAuthSessionWrapper, BasicCredentialFactory
 
 from fcache.cache import FileCache
@@ -95,7 +96,7 @@ def elapsed_time(total_seconds):
 
 class WEEKDAYS(Enum): 
     """Enum for days of the week."""
-    Mon= 0 
+    Mon = 0 
     Tue = 1 
     Wed = 2 
     Thu = 3 
@@ -103,9 +104,8 @@ class WEEKDAYS(Enum):
     Sat = 5 
     Sun = 6
 
+"""Closes all door."""
 class CloseAllHandler(Resource):
-    """Closes all door."""
-
     isLeaf = True
 
     def __init__ (self, controller):
@@ -125,7 +125,7 @@ class LogHandler(Resource):
         Resource.__init__(self)
         self.controller = controller
 
-    def tail(self, filepath, lines=60):
+    def tail(self, filepath):
         data_value = ""
         with open(filepath, "rb") as f:
             loglines = f.readlines()[-60:]
@@ -133,9 +133,9 @@ class LogHandler(Resource):
 
         # reverse order, most recent at the top
         for logline in reversed(loglines):
-            data_value += logline 
+            data_value += logline
 
-        return data_value 
+        return data_value
 
     def render(self, request):
         data = self.tail(self.controller.file_name)
@@ -173,7 +173,7 @@ class ConfigHandler(Resource):
     def render(self, request):
         request.setHeader('Content-Type', 'application/json')
 
-        return json.dumps([(d.id, d.name, d.state, d.tis.get(d.state)) 
+        return json.dumps([(d.id, d.name, d.state, d.tis.get(d.state))
                            for d in self.controller.doors])
 
 class UptimeHandler(Resource):
@@ -194,6 +194,7 @@ class UptimeHandler(Resource):
     def render(self, request):
         request.setHeader('Content-Type', 'application/json')
         return json.dumps("Uptime: " + self.uptime())
+
 
 class UpdateHandler(Resource):
     isLeaf = True
@@ -281,8 +282,6 @@ class Door(object):
 
     def get_state_pin(self):
         """returns OPEN or CLOSED for a given garages door state pin"""
-        self.logger = logging.getLogger(__name__)
-
         if isDebugging:
             return self.test_state_pin
         else:
@@ -292,9 +291,8 @@ class Door(object):
 
         return OPEN
 
+    """This gets hit from the web page to open or close garage door"""
     def toggle_relay(self):
-    	"""This gets hit from the web page to open or close garage door"""
-
         if isDebugging:
             self.test_state_pin = CLOSED if self.test_state_pin == OPEN else OPEN 
             return
@@ -310,17 +308,11 @@ class Controller(object):
         isDebugging = debugging 
         self.config = config
 
-        # read args
-        self.port = config['site']['port'] 
-        for arg in sys.argv:
-            if str(arg) == 'debug':
-                # ex. python controller.py debug -v
-                isDebugging = True 
-
-            elif str(arg).startswith('port='):
-                self.port = str(sys.argv[2]).split('=')[1]
-
         # read config
+        c = self.config['site']
+	self.port = c['port']
+	self.port_secure = c['port_secure']
+
         c = self.config['config']
         self.use_https = c['use_https']
         self.use_auth = c['use_auth']
@@ -343,6 +335,14 @@ class Controller(object):
         self.on_days_of_week = c['on_days_of_week']
         self.alert_type = c['alert_type']
 
+        for arg in sys.argv:
+            if str(arg) == 'debug':
+                # ex. python controller.py debug -v
+                isDebugging = True 
+
+            elif str(arg).startswith('port='):
+                self.port = str(sys.argv[2]).split('=')[1]
+
         # set up fcache to log last time garage door was opened
         self.fileCache = FileCache(gfileCache, flag='cs')
 
@@ -351,17 +351,24 @@ class Controller(object):
         date_fmt = '%a, %m/%d/%y %H:%M:%S' 
         log_level = logging.INFO
         self.debugMsg = "Debugging=%s" % isDebugging
+
         if isDebugging:
             logging.basicConfig(datefmt=date_fmt, format=log_fmt, level=log_level)
-            logger = logging.getLogger(__name__)
         else:
+	    logging.getLogger('mylogger').setLevel(logging.NOTSET)
             logging.basicConfig(datefmt=date_fmt, format=log_fmt, level=log_level, filename=self.file_name)
+	    rotatingHandler = logging.handlers.RotatingFileHandler(self.file_name, maxBytes=500000, backupCount=5)
+	    rotatingHandler.setLevel(log_level)
+	    rotatingHandler.setFormatter(logging.Formatter(log_fmt))
+	    logging.getLogger('mylogger').addHandler(rotatingHandler)
+
             gpio.setwarnings(False)
             gpio.cleanup()
             gpio.setmode(gpio.BCM)
 
+
         # Banner
-        logging.info("<---Garage Controller starting (port=%s %s) --->" % (self.port, self.debugMsg))
+        logging.info("<---Garage Controller starting (port=%s %s) --->" % (self.port_secure if self.port_secure != "" else self.port, self.debugMsg))
 
         self.updateHandler = UpdateHandler(self)
 
@@ -402,14 +409,13 @@ class Controller(object):
             print self.initMsg
         else:
             logging.info(self.initMsg)
-            self.send_it(self.initMsg) 
+            self.send_it(self.initMsg, None) 
 
     def setTimeSinceLastOpenFromFile(self, doorName):
         self.fileCache[doorName] = getTime()
 
+    """get time since last open, if doesn't exist default to current time and return value"""
     def getTimeSinceLastOpenFromFile(self, doorName):
-    	"""get time since last open, if doesn't exist default to current time and return value"""
-
         return(self.fileCache.setdefault(doorName, getTime()))
 
     def getDoor(self, door_id):
@@ -418,15 +424,15 @@ class Controller(object):
                 return door
         return None
 
+    """motion detected, reset time_in_state to the current time for all open doors, after the "open" message IM has been send (send=False)"""
     def motion(self, pin):
-	"""motion detected, reset time_in_state to the current time for all open doors, after the "open" message IM has been send (send=False)"""
-
         if pin != None:
             curr_time = getTime()
             for d in self.doors:
-                if d.state == OPEN and d.send_open_im == False:
+                if d.state == OPEN and (d.send_open_im == False or d.send_open_im_debug == False):
                     if isDebugging:
-                        logging.info("Motion detected, reset %s time" % (d.name))
+        		cur_dt = time.strftime("%m/%d/%y %H:%M:%S", time.localtime(curr_time))
+                        logging.info("Motion detected, reset %s (%s)" % (d.name, cur_dt))
                     d.tis[d.state] = curr_time
                     d.tis[STILLOPEN] = curr_time
                     d.tis[FORCECLOSE] = curr_time
@@ -449,7 +455,7 @@ class Controller(object):
         newDateTime = dt_time_in_state  + timedelta(seconds=alert_time) 
         return curr_time > time.mktime(newDateTime.timetuple()) # convert to epoch time
 
-    def door_CLOSED(self, door, etime):
+    def door_CLOSED(self, door):
         message = ''
         curr_time = getTime()
 
@@ -474,9 +480,8 @@ class Controller(object):
     def door_CLOSING(self, door):
         message = ''
         curr_time = getTime()        
-        etime = elapsed_time(int(curr_time - door.tis.get(door.state)))
         if self.getExpiredTime(door.tis.get(door.state), self.time_to_close, curr_time):
-            return self.door_CLOSED(door, etime) 
+            return self.door_CLOSED(door) 
         return message
 
     def door_OPEN(self, door):
@@ -505,6 +510,7 @@ class Controller(object):
         door.tis[STILLOPEN] = curr_time
         door.tis[FORCECLOSE] = curr_time
         door.send_open_im = True
+        door.send_open_im_debug = True
 
     def door_OPENING(self, door):
         curr_time = getTime()
@@ -529,9 +535,8 @@ class Controller(object):
             if door.state != OPENING and door.state != CLOSING: 
                 door.state = OPENING if door.state == CLOSED else CLOSING
                 door.tis[door.state] = curr_time
-                #if pin_state == CLOSED:
-                #    pin_state = OPEN
-                #self.logger.info("%s %s->%s" % (door.name, pin_state, door.state))
+        	if isDebugging:
+                    self.logger.info("%s %s(%s)" % (door.name, door.state, pin_state))
 
         if door.state == OPENING:
             message = self.door_OPENING(door)
@@ -540,16 +545,19 @@ class Controller(object):
             message = self.door_CLOSING(door)
 
         elif door.state == OPEN:
+            if door.send_open_im_debug == True and isDebugging: 
+                self.logger.info("%s %s(%s)" % (door.name, door.state, pin_state))
+        	door.send_open_im_debug = False
             message = self.door_OPEN(door)
 
         if message != "":
             self.logger.info(message)
-            self.send_it(message)
+            self.send_it(message, door)
 
         self.updateHandler.handle_updates()
 
     def is_day_of_week(self, day_of_week_num):
-    	"""Return the day of the week as an integer, where Monday is 0 and Sunday is 6."""
+        """Return the day of the week as an integer, where Monday is 0 and Sunday is 6."""
 
         if self.on_days_of_week == '':
             return True
@@ -571,20 +579,21 @@ class Controller(object):
     def can_send_alert(self):
         return self.use_alerts and self.is_day_of_week(getDateTime().weekday()) and self.is_time_between(getDateTime().time()) 
 
-    def send_it(self, message):
+    def send_it(self, message, door):
         if self.can_send_alert():
+	    doorname = "Garage"
             if self.alert_type == 'smtp': 
                 self.send_text(message)
             elif self.alert_type == 'pushbullet':
-                self.send_pushbullet('Garage', message)
+                self.send_pushbullet(doorname, message)
             elif self.alert_type == 'pushover':
-                self.send_pushover('Garage', message)
+                self.send_pushover(doorname, message)
 
     def send_text(self, msg):
         self.logger = logging.getLogger(__name__)
 
-        if isDebugging:
-            return
+        #if isDebugging:
+        #    return
 
         # When restarting each morning at 4am, don't send init msg if between 3:58 - 4:05am
         raw_now = datetime.datetime.now().time()
@@ -604,12 +613,6 @@ class Controller(object):
                     server.sendmail('from', config["to_email"], mg.as_string())
         except smtplib.SMTPException as e:
             self.logger.error("Error: unable to send gmail text %s", e)
-        except socket.gaierror as ge:
-            self.logger.error("gaierror:%s", ge)
-            return
-        except socket.error as se:
-            self.logger.error("socket error:%s", se)
-            return
         except:
             self.logger.error("Main Exception: %s", sys.exc_info()[0])
         finally:
@@ -622,8 +625,6 @@ class Controller(object):
                 self.logger.error("se1 Exception Error: .quit() failed %s", se1)
             except smtplib.SMTPResponseException as se2:
                 self.logger.error("se2 smtp Exception Error: .quit() failed %s", se2)
-            except UnboundLocalException as ule:
-                self.logger.error("UnboundLocalException Error: .quit() failed %s", ule)
             except:
                 self.logger.error("final Exception: %s", sys.exc_info()[0])
 
@@ -638,7 +639,7 @@ class Controller(object):
                  }), {'Authorization': 'Bearer ' + config['access_token'], 'Content-Type': 'application/json'})
         response = conn.getresponse().read()
         logging.info(response)
-        #door.pb_iden = json.loads(response)['iden']
+        door.pb_iden = json.loads(response)['iden']
 
     def send_pushover(self, title, message):
         config = self.config['alerts']['pushover']
@@ -656,15 +657,14 @@ class Controller(object):
         self.logger = logging.getLogger(__name__)
         message = '' 
         for door in self.doors:
-            print door.get_state_pin()
+            #print door.get_state_pin()
             if door.get_state_pin() != CLOSED:
                 if door.state == CLOSING or door.state == OPENING:
                     message += door.name + " Closing or Opening, " 
                 elif door.state == OPEN:
                     if message == None:
                         message = 'Close All: '
-                    message += door.name
-                    message += ', '
+                    message += door.name +'('+ door.state +')'
                     door.toggle_relay()
                     time.sleep(0.2) 
 
@@ -683,11 +683,11 @@ class Controller(object):
         return updates
 
     def get_config_with_default(self, config, param, default):
-	if not config:
-	    return default
-	if not param in config:
-	    return default
-	return config[param]
+        if not config:
+            return default
+        if not param in config:
+            return default
+        return config[param]
 
     def run(self):
         root = File('www')
@@ -701,14 +701,14 @@ class Controller(object):
         task.LoopingCall(self.check_status).start(1.0)
 
         site = server.Site(root)
-	if not self.get_config_with_default(self.config['config'], 'use_https', False):
-    	    reactor.listenTCP(self.config['site']['port'], site)  # @UndefinedVariable
-    	    reactor.run()  # @UndefinedVariable
-	else:
-    	    sslContext = ssl.DefaultOpenSSLContextFactory(self.config['site']['ssl_key'], self.config['site']['ssl_cert'])
-    	    reactor.listenSSL(self.config['site']['port_secure'], site, sslContext)  # @UndefinedVariable
-            reactor.run()  # @UndefinedVariable
 
+        if not self.get_config_with_default(self.config['config'], 'use_https', False):
+            reactor.listenTCP(self.port, site)  # @UndefinedVariable
+        else:
+            sslContext = ssl.DefaultOpenSSLContextFactory(self.config['site']['ssl_key'], self.config['site']['ssl_cert'])
+            reactor.listenSSL(self.port_secure, site, sslContext)  # @UndefinedVariable
+
+        reactor.run()  # @UndefinedVariable
 if __name__ == '__main__':
     config_file = open('config.json')
     controller = Controller(json.load(config_file))
