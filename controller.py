@@ -206,6 +206,8 @@ class Controller(object):
             if str(arg) == 'debug':
                 # ex. python controller.py debug -v
                 Utils.isDebugging = True 
+        	self.time_to_report_open = 35 
+        	self.time_to_report_still_open = 100
 
             if str(arg).startswith('port='):
                 self.port = str(sys.argv[2]).split('=')[1]
@@ -267,6 +269,7 @@ class Controller(object):
             self.use_smtp = ('smtp' in config['alerts']) and set(smtp_params) <= set(config['alerts']['smtp'])
         elif self.alert_type == 'pushover':
             self.pushover_user_key = config['alerts']['pushover']['user_key']
+            self.pushover_api_key = config['alerts']['pushover']['api_key']
         else:
             self.alert_type = None
             logging.info("No alerts configured")
@@ -355,10 +358,10 @@ class Controller(object):
             door.tis[Utils.STILLOPEN] = curr_time 
             message = '%s is still %s at %s' % (door.name, door.state, cur_dt)
 
-        if self.time_to_force_close != None and Utils.getExpiredTime(door.tis.get(Utils.FORCECLOSE), self.time_to_force_close, curr_time):
-            door.tis[Utils.FORCECLOSE] = curr_time
-            message = '%s force closed %s->%s at %s (%s)' % (door.name, door.state, Utils.CLOSED, cur_dt, etime)
-            door.toggle_relay()
+        #if self.time_to_force_close != None and Utils.getExpiredTime(door.tis.get(Utils.FORCECLOSE), self.time_to_force_close, curr_time):
+        #    door.tis[Utils.FORCECLOSE] = curr_time
+        #    message = '%s force closed %s->%s at %s (%s)' % (door.name, door.state, Utils.CLOSED, cur_dt, etime)
+        #    door.toggle_relay()
 
         return message
 
@@ -459,17 +462,21 @@ class Controller(object):
     def send_pushover(self, title, message):
         self.logger = logging.getLogger(__name__)
 
+        if Utils.isDebugging:
+            logging.info("PO - %s" % (message))
+            return
+
 	if Utils.is_too_early():
             return
 
         try:
-            config = self.config['alerts']['pushover']
             conn = httplib.HTTPSConnection("api.pushover.net:443")
             conn.request("POST", "/1/messages.json",
                 urllib.urlencode({
-                    "token": config['api_key'],
-                    "user": config['user_key'],
+                    "token": self.pushover_api_key,
+                    "user": self.pushover_user_key,
                     "title": title,
+                    "sound": 'pushover',
                     "message": message,
                 }), { "Content-type": "application/x-www-form-urlencoded" })
             conn.getresponse()
