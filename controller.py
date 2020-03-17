@@ -197,9 +197,9 @@ class Controller(object):
         c = self.config['alerts']
         self.when_opened = c['when_opened']
         self.when_closed = c['when_closed']
+        self.on_days_of_week = c['on_days_of_week']
         self.from_time  = c['from_time']
         self.to_time = c['to_time']
-        self.on_days_of_week = c['on_days_of_week']
         self.alert_type = c['alert_type']
 
         for arg in sys.argv:
@@ -251,6 +251,7 @@ class Controller(object):
 
         # setup Doors from config file
         self.doors = [Doors.Door(x, c) for (x, c) in config['doors'].items()]
+
         for door in self.doors:
 	    door.setup_gpio(gpio)
             door.state = door.get_state_pin()
