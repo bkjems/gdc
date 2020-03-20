@@ -250,17 +250,9 @@ class Controller(object):
             logging.info("Motion pin = %s" % (self.motion_pin))
 
         # setup Doors from config file
-        self.doors = [Doors.Door(x, c) for (x, c) in config['doors'].items()]
-
+        self.doors = [Doors.Door(x, c) for (x, c) in sorted(config['doors'].items())]
         for door in self.doors:
-	    door.setup_gpio(gpio)
-            door.state = door.get_state_pin()
-            if door.state == Utils.OPEN:
-                curr_time = Utils.getTime()
-                self.setOpenState(door, curr_time) 
-                door.tis[Utils.OPENING] = curr_time
-            door.send_open_im = True
-            door.tslo = self.getTimeSinceLastOpenFromFile(door.id) 
+	    door.setup(gpio, self.getTimeSinceLastOpenFromFile(door.id)) 
             self.set_initial_text_msg(door) 
 
         # setup alerts
@@ -303,10 +295,7 @@ class Controller(object):
                     if Utils.isDebugging:
         		cur_dt = time.strftime("%m/%d/%y %H:%M:%S", time.localtime(curr_time))
                         logging.info("Motion detected, reset %s (%s)" % (d.name, cur_dt))
-                    d.tis[d.state] = curr_time
-                    d.tis[Utils.STILLOPEN] = curr_time
-                    d.tis[Utils.FORCECLOSE] = curr_time
-                    d.send_open_im = True
+                    d.setOpenState(curr_time)
 
     def set_initial_text_msg(self, door):
         if len(self.initMsg) == 0:
@@ -366,20 +355,13 @@ class Controller(object):
 
         return message
 
-    def setOpenState(self, door, curr_time):
-        door.tis[door.state] = curr_time
-        door.tis[Utils.STILLOPEN] = curr_time
-        door.tis[Utils.FORCECLOSE] = curr_time
-        door.send_open_im = True
-        door.send_open_im_debug = True
-
     def door_OPENING(self, door):
         curr_time = Utils.getTime()
         message = ''
         if Utils.getExpiredTime(door.tis.get(door.state), self.time_to_open, curr_time):
             #self.logger.info("%s %s->%s" % (door.name, door.state, OPEN))
             door.state = Utils.OPEN
-            self.setOpenState(door, curr_time) 
+            door.setOpenState(curr_time) 
         return message
 
     def check_status(self):
