@@ -20,6 +20,11 @@ class Test(unittest.TestCase):
  	c.time_to_open = 0	
 	return c
 
+    def testDoorNameIsNamedRight(self):
+	c = self.setup() 
+	door = c.getDoor("right")
+        assert door is not None
+
     def testDoorOpenLongerThanTTW(self):
 	c = self.setup() 
 	door = c.getDoor("right")

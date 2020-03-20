@@ -10,6 +10,10 @@ class Door(object):
         self.state_pin = config['state_pin']
         self.test_state_pin = Utils.CLOSED
         self.state_pin_closed_value = config['closed_value']
+        self.tslo = 0
+        self.state = None
+        self.send_open_im = True
+        self.send_open_im_debug = False
         self.tis = {
             Utils.CLOSED:0,
             Utils.OPEN:0,
@@ -18,6 +22,24 @@ class Door(object):
             Utils.STILLOPEN:0,
             Utils.FORCECLOSE:0
         }
+
+    def setup(self, gpio, tslo_value):
+    	self.setup_gpio(gpio) 
+        self.state = self.get_state_pin()
+
+        if self.state == Utils.OPEN:
+            curr_time = Utils.getTime()
+            self.setOpenState(curr_time)
+            self.tis[Utils.OPENING] = curr_time
+        self.send_open_im = True
+        self.tslo = tslo_value
+
+    def setOpenState(self, curr_time):
+        self.tis[self.state] = curr_time
+        self.tis[Utils.STILLOPEN] = curr_time
+        self.tis[Utils.FORCECLOSE] = curr_time
+        self.send_open_im = True
+        self.send_open_im_debug = True
 
     def setup_gpio(self, gpio):
         if Utils.isDebugging:
