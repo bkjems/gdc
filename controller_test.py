@@ -24,6 +24,7 @@ class Test(unittest.TestCase):
 	c = self.setup() 
 	door = c.getDoor("right")
         assert door is not None
+        self.assertTrue(door.id == "right")
 
     def testDoorOpenLongerThanTTW(self):
 	c = self.setup() 
@@ -78,13 +79,6 @@ class Test(unittest.TestCase):
 	c.check_door_status(door)
         self.assertEquals(door.state, "closing")
 
-    def testGetDoor(self):
-	c = self.setup() 
-	door = c.getDoor("right")
-        self.assertTrue(door.id == "right")
-	#door = c.getDoor("right")
-        #self.assertTrue(door.id == "right")
-#date
     def testIsDayOfWeekInvalid(self):
         c = self.setup()
         c.on_days_of_week="Mon,Tue,Wed,Thu,Fri,Sun"
@@ -95,7 +89,6 @@ class Test(unittest.TestCase):
     def testIsDayOfWeekValid(self):
         c = self.setup()
         c.on_days_of_week="Mon,Tue,Wed,Thu,Fri,Sat,Sun"
-        #dow = datetime.datetime.now().weekday()
         dow = datetime.date(2018, 11, 17).weekday()
         rv = Utils.is_day_of_week(c,dow)
         self.assertTrue(rv)
@@ -113,13 +106,6 @@ class Test(unittest.TestCase):
         c.to_time = ""
         c.on_days_of_week = ""
         rv = Utils.is_time_between(c,datetime.time(5, 0))
-        self.assertTrue(rv)
-
-    def testIsTimeBetweenValid(self):
-        c = self.setup()
-        c.from_time = '00:00'
-        c.to_time = '23:59'
-        rv = Utils.is_time_between(c,datetime.time(2, 0))
         self.assertTrue(rv)
 
     def testIsTimeBetweenInvalid(self):

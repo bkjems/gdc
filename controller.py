@@ -208,6 +208,7 @@ class Controller(object):
                 Utils.isDebugging = True 
         	self.time_to_report_open = 35 
         	self.time_to_report_still_open = 100
+        	Utils.gfileCache += "debug"
 
             if str(arg).startswith('port='):
                 self.port = str(sys.argv[2]).split('=')[1]
@@ -224,6 +225,7 @@ class Controller(object):
 
         if Utils.isDebugging:
             logging.basicConfig(datefmt=date_fmt, format=log_fmt, level=log_level)
+            self.debugMsg = "Debugging=%s time_to_report_open=%d time_to_report_still_open %d gfileCache=%s" % (Utils.isDebugging, self.time_to_report_open, self.time_to_report_still_open, Utils.gfileCache)
         else:
 	    logging.getLogger('mylogger').setLevel(logging.NOTSET)
             logging.basicConfig(datefmt=date_fmt, format=log_fmt, level=log_level, filename=self.file_name)
