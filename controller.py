@@ -48,9 +48,13 @@ class LogHandler(Resource):
 
     def tail(self, filepath):
         data_value = ""
-        with open(filepath, "rb") as f:
-            loglines = f.readlines()[-60:]
-        f.close()
+
+        try:
+	    with open(filepath, "rb") as f:
+                loglines = f.readlines()[-60:]
+            f.close()
+        except:
+            return "No log file found (%s)" % (filepath)
 
         # reverse order, most recent at the top
         for logline in reversed(loglines):
@@ -59,8 +63,8 @@ class LogHandler(Resource):
         return data_value
 
     def render(self, request):
-        data = self.tail(self.controller.file_name)
-        return "<html><body><pre>%s</pre></body></html>" % (data,)
+        logs = self.tail(self.controller.file_name)
+        return "<html><body><pre>%s</pre></body></html>" % (logs)
 
 class ClickHandler(Resource):
     isLeaf = True
@@ -367,8 +371,11 @@ class Controller(object):
         return message
 
     def check_status(self):
-        for door in self.doors:
-            self.check_door_status(door)
+	try:
+            for door in self.doors:
+                self.check_door_status(door)
+        except:
+            self.logger.error("check_status: %s", sys.exc_info()[0])
 
     def check_door_status(self, door):
         self.logger = logging.getLogger(__name__)
@@ -449,7 +456,7 @@ class Controller(object):
 
         if Utils.isDebugging:
             logging.info("PO - %s" % (message))
-            return
+            #return
 
 	if Utils.is_too_early():
             return
@@ -465,7 +472,9 @@ class Controller(object):
                     "message": message,
                 }), { "Content-type": "application/x-www-form-urlencoded" })
             conn.getresponse()
-        except:
+        except socket.gaierror as e:
+            self.logger.error("send_pushover Exception2: %s", e)
+	except:
             self.logger.error("send_pushover Exception: %s", sys.exc_info()[0])
 
     def close_all(self):

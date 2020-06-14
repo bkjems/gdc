@@ -1,5 +1,6 @@
 import utils as Utils
 import controller as Controller
+import time as time
 
 class Door(object):
     def __init__(self, doorId, config):
@@ -68,6 +69,6 @@ class Door(object):
             return
 
         self.gpio.output(self.relay_pin, False)
-        time.sleep(0.2)
+        time.sleep(1)
         self.gpio.output(self.relay_pin, True)
 
