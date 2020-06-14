@@ -26,6 +26,14 @@ class Test(unittest.TestCase):
         assert door is not None
         self.assertTrue(door.id == "right")
 
+    def testDoorOpenAtStartup(self):
+	c = self.setup() 
+	door = c.getDoor("right")
+	door.test_state_pin = Utils.OPEN
+	door.state = Utils.OPEN
+	door.toggle_relay()
+        #self.assertEquals(door.test_state_pin, "open")
+
     def testDoorOpenLongerThanTTW(self):
 	c = self.setup() 
 	door = c.getDoor("right")
