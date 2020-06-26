@@ -63,7 +63,7 @@ class LogHandler(Resource):
         return data_value
 
     def render(self, request):
-        logs = self.tail(self.controller.file_name)
+        logs = self.tail(self.controller.file_name).replace("<", "&lt")
         return "<html><body><pre>%s</pre></body></html>" % (logs)
 
 class ClickHandler(Resource):
@@ -225,18 +225,18 @@ class Controller(object):
         log_fmt = '%(asctime)s %(levelname)-8s %(message)s'
         date_fmt = '%a, %m/%d/%y %H:%M:%S' 
         log_level = logging.INFO
-        self.debugMsg = "Debugging=%s" % Utils.isDebugging
 
         if Utils.isDebugging:
             logging.basicConfig(datefmt=date_fmt, format=log_fmt, level=log_level)
             self.debugMsg = "Debugging=%s time_to_report_open=%d time_to_report_still_open %d gfileCache=%s" % (Utils.isDebugging, self.time_to_report_open, self.time_to_report_still_open, Utils.gfileCache)
         else:
-	    logging.getLogger('mylogger').setLevel(logging.NOTSET)
+            self.debugMsg = "Debugging=%s" % Utils.isDebugging
+            logging.getLogger('mylogger').setLevel(logging.NOTSET)
             logging.basicConfig(datefmt=date_fmt, format=log_fmt, level=log_level, filename=self.file_name)
-	    rotatingHandler = logging.handlers.RotatingFileHandler(self.file_name, maxBytes=500000, backupCount=5)
-	    rotatingHandler.setLevel(log_level)
-	    rotatingHandler.setFormatter(logging.Formatter(log_fmt))
-	    logging.getLogger('mylogger').addHandler(rotatingHandler)
+            rotatingHandler = logging.handlers.RotatingFileHandler(self.file_name, maxBytes=500000, backupCount=5)
+            rotatingHandler.setLevel(log_level)
+            rotatingHandler.setFormatter(logging.Formatter(log_fmt))
+            logging.getLogger('mylogger').addHandler(rotatingHandler)
 
             gpio.setwarnings(False)
             gpio.cleanup()
@@ -277,7 +277,7 @@ class Controller(object):
             print self.initMsg
         else:
             logging.info(self.initMsg)
-            self.send_it(self.initMsg) 
+            self.send_msg(self.initMsg) 
 
     def setTimeSinceLastOpenFromFile(self, doorName):
         self.fileCache[doorName] = Utils.getTime()
@@ -330,7 +330,7 @@ class Controller(object):
         if door.send_open_im == False:
             message = '%s was %s at %s (%s) away for(%s)' % (door.name, door.state, cur_dt, etime, last_open_msg)
         else:
-            message = '%s was opened and %s at %s (%s) away for(%s)' % (door.name, door.state, cur_dt, etime, last_open_msg) 
+            message = '%s was opened & %s at %s (%s) away for(%s)' % (door.name, door.state, cur_dt, etime, last_open_msg) 
         return message
 
     def door_CLOSING(self, door):
@@ -404,20 +404,26 @@ class Controller(object):
 
         if message != "":
             self.logger.info(message)
-            self.send_it(message)
+            self.send_msg(message)
 
         self.updateHandler.handle_updates()
 
     def can_send_alert(self):
-        return self.use_alerts and Utils.is_day_of_week(self, Utils.getDateTime().weekday()) and Utils.is_time_between(self, Utils.getDateTime().time()) 
+        dt = Utils.getDateTime()
+        if self.use_alerts:
+	    return Utils.is_day_of_week(self, dt.weekday()) and Utils.is_time_between(self, dt.time()) 
+        return False
 
-    def send_it(self, message):
+    def send_msg(self, message):
+	if Utils.isDebugging:
+            logging.info("PO - %s" % (message))
+            return
+
         if self.can_send_alert():
-	    doorname = "Garage"
             if self.alert_type == 'smtp': 
                 self.send_text(message)
             elif self.alert_type == 'pushover':
-                self.send_pushover(doorname, message)
+                self.send_pushover(message)
 
     def send_text(self, msg):
         self.logger = logging.getLogger(__name__)
@@ -444,19 +450,11 @@ class Controller(object):
             except smtplib.SMTPServerDisconnected as sd:
                 self.logger.error("sd Error: .quit() failed %s", sd)
                 server.close()
-            except smtplib.SMTPException as se1:
-                self.logger.error("se1 Exception Error: .quit() failed %s", se1)
-            except smtplib.SMTPResponseException as se2:
-                self.logger.error("se2 smtp Exception Error: .quit() failed %s", se2)
             except:
                 self.logger.error("final Exception: %s", sys.exc_info()[0])
 
-    def send_pushover(self, title, message):
+    def send_pushover(self, message):
         self.logger = logging.getLogger(__name__)
-
-        if Utils.isDebugging:
-            logging.info("PO - %s" % (message))
-            #return
 
 	if Utils.is_too_early():
             return
@@ -467,7 +465,7 @@ class Controller(object):
                 urllib.urlencode({
                     "token": self.pushover_api_key,
                     "user": self.pushover_user_key,
-                    "title": title,
+                    "title": 'Garage',
                     "sound": 'pushover',
                     "message": message,
                 }), { "Content-type": "application/x-www-form-urlencoded" })
