@@ -94,6 +94,16 @@ class Test(unittest.TestCase):
         rv = Utils.is_day_of_week(c,dow)
         self.assertFalse(rv)
 
+    def testIsTooEarly(self):
+	c = self.setup() 
+        dt = datetime.datetime.strptime('03:55', '%H:%M').time()
+        self.assertFalse(Utils.is_too_early_withTime(dt))
+        dt = datetime.datetime.strptime('04:00', '%H:%M').time()
+        self.assertTrue(Utils.is_too_early_withTime(dt)) 
+        self.assertFalse(Utils.is_too_early_withTime(Utils.getDateTime().time()))
+        self.assertFalse(Utils.is_too_early_withTime(None))
+        self.assertFalse(Utils.is_too_early())
+
     def testIsDayOfWeekValid(self):
         c = self.setup()
         c.on_days_of_week="Mon,Tue,Wed,Thu,Fri,Sat,Sun"
@@ -143,9 +153,43 @@ class Test(unittest.TestCase):
         self.assertEqual('1hr 16:00', rv)
 
     def testelapsedTimeDays(self):
-	rv = Utils.elapsed_time(144560)
+        rv = Utils.elapsed_time(144560)
         self.assertEqual('1 day, 16:09', rv)
 
+    def testIsTimeExpired(self):
+        c = self.setup()
+        tis = Utils.datetimeToEpoch(datetime.datetime.strptime("06-14-2020 11:00:00", Utils.DATEFORMAT))
+        alert_time =  1200 # 20 mins
+        curr_time = Utils.datetimeToEpoch(datetime.datetime.strptime("06-14-2020 11:10:00", Utils.DATEFORMAT))
+        self.assertFalse(Utils.isTimeExpired(tis, alert_time, curr_time))       
+
+        curr_time = Utils.datetimeToEpoch(datetime.datetime.strptime("06-14-2020 11:20:01", Utils.DATEFORMAT))
+        self.assertTrue(Utils.isTimeExpired(tis, alert_time, curr_time))
+
+        alert_time =  0 
+        self.assertTrue(Utils.isTimeExpired(tis, alert_time, curr_time))
+
+    def testStillOpen_mktime(self):
+        c = self.setup()
+        door = c.getDoor("right")
+        door.tis[Utils.STILLOPEN] = Utils.roundUpMins(Utils.getTime())
+        curr_time = datetime.datetime.strptime("06-14-2020 13:11:05", Utils.DATEFORMAT)
+        door.tis[Utils.STILLOPEN] = Utils.roundUpMins(Utils.datetimeToEpoch(curr_time))
+        self.assertEqual(1592162100.0, door.tis[Utils.STILLOPEN])
+
+    def testRoundUp(self):
+        self.assertEqual(Utils.roundUp_string("07-01-2020 14:09:00"), 
+	    datetime.datetime.strptime("07-01-2020 14:10:00", Utils.DATEFORMAT))
+        self.assertEqual(Utils.roundUp_string("12-31-2020 23:59:10"), 
+	    datetime.datetime.strptime("01-01-2021 00:00:00", Utils.DATEFORMAT))
+        self.assertEqual(Utils.roundUp_string("12-11-2020 23:59:10"), 
+	    datetime.datetime.strptime("12-12-2020 00:00:00", Utils.DATEFORMAT))
+        self.assertEqual(Utils.roundUp_string("12-13-2020 11:59:10"), 
+	    datetime.datetime.strptime("12-13-2020 12:00:00", Utils.DATEFORMAT))
+        self.assertEqual(Utils.roundUp_string("10-31-2020 23:59:10"), 
+	    datetime.datetime.strptime("11-01-2020 00:00:00", Utils.DATEFORMAT))
+        self.assertEqual(Utils.roundUp_string("01-02-2020 14:50:10"), 
+	    datetime.datetime.strptime("01-02-2020 14:50:00", Utils.DATEFORMAT))
 #
 # sudo python controller_test.py -v"
 #
