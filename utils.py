@@ -2,10 +2,10 @@
 """Utility methods to monitor and control garage doors via a raspberry pi."""
 import time
 import datetime
-from time import strftime
-from datetime import date
+import utils as Utils
 from enum import Enum
 from datetime import timedelta
+from time import gmtime
 
 """global"""
 gfileCache = 'garageCache'
@@ -28,6 +28,12 @@ STILLOPEN = 'stillopen'
 
 global FORCECLOSE
 FORCECLOSE = 'forceclose'
+
+global DATEFORMAT
+DATEFORMAT = '%m-%d-%Y %H:%M:%S'
+
+global TIMEFORMAT
+TIMEFORMAT = '%H:%M:%S'
 
 class WEEKDAYS(Enum):
     # Enum for days of the week.
@@ -103,17 +109,70 @@ def is_time_between(self, curr_datetime_time):
     return datetime.time(from_hr, from_min) <= curr_datetime_time <= datetime.time(to_hr, to_min)
 
 def is_too_early():
+    return is_too_early_withTime(Utils.getDateTime().time())
+
+def is_too_early_withTime(time_now):
     # When restarting each morning at 4am, don't send init msg if between 3:58 - 4:05am
-    raw_now = datetime.datetime.now().time()
-    return(datetime.time(3, 58) <= raw_now <= datetime.time(4, 5))
+    if time_now == None:
+        return False
+
+    return(datetime.time(3, 58) <= time_now <= datetime.time(4, 5))
 
 
-def getExpiredTime(tis, alert_time, curr_time):
+def isTimeExpired(tis, alert_time, curr_time):
     if alert_time <= 0:
         return True
 
     # add alert_time secs to current time
-    dt_time_in_state  = datetime.datetime.fromtimestamp(tis) # convert time to datetime
-    newDateTime = dt_time_in_state  + timedelta(seconds=alert_time)
-    return curr_time > time.mktime(newDateTime.timetuple()) # convert to epoch time
+    dt_time_in_state  = epochToDatetime(tis) 
+    newDateTime = dt_time_in_state  + timedelta(seconds=alert_time) 
+    return curr_time > datetimeToEpoch(newDateTime)
 
+def datetimeToEpoch(dt):
+    if dt == None:
+        return None
+
+    return time.mktime(dt.timetuple()) # convert to epoch time
+
+def epochToDatetime(epoch):
+    if epoch == None:
+        return None
+
+    return datetime.datetime.fromtimestamp(epoch) # convert time_seconds to datetime
+
+def modby(mins):
+    by = 5
+    hr = 0
+    r = (mins % by)
+
+    if r != 0:
+        mins += (by - r)
+
+    if mins % 60 == 0:
+	mins = 0
+        hr = 1
+
+    return mins, hr
+
+def roundUp_string(td_string):
+    dt = None
+    if td_string != "":
+        dt = datetime.datetime.strptime(td_string, Utils.DATEFORMAT) 
+
+    return roundUpDateTime(dt)
+
+def roundUpMins(dt_seconds):
+    if dt_seconds == None: 
+        return None
+
+    dt = epochToDatetime(dt_seconds) 
+    return datetimeToEpoch(roundUpDateTime(dt))
+
+def roundUpDateTime(dt):
+    if dt == None: 
+        return None
+
+    nm, hr = modby(dt.minute)
+    ft = timedelta(hours=+hr, minutes=+(nm-dt.minute-1), seconds=+(60-dt.second))
+
+    return dt + ft

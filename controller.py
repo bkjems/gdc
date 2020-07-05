@@ -299,7 +299,7 @@ class Controller(object):
             for d in self.doors:
                 if d.state == Utils.OPEN and (d.send_open_im == False or d.send_open_im_debug == False):
                     if Utils.isDebugging:
-        		cur_dt = time.strftime("%m/%d/%y %H:%M:%S", time.localtime(curr_time))
+        		cur_dt = Utils.epochToDatetime(curr_time).strftime(Utils.TIMEFORMAT)
                         logging.info("Motion detected, reset %s (%s)" % (d.name, cur_dt))
                     d.setOpenState(curr_time)
 
@@ -326,7 +326,7 @@ class Controller(object):
         etime = Utils.elapsed_time(int(ct))
         door.tis[door.state] = curr_time 
 
-        cur_dt = time.strftime("%H:%M:%S", time.localtime(time.time()))
+        cur_dt = Utils.epochToDatetime(curr_time).strftime(Utils.TIMEFORMAT)
         if door.send_open_im == False:
             message = '%s was %s at %s (%s) away for(%s)' % (door.name, door.state, cur_dt, etime, last_open_msg)
         else:
@@ -336,7 +336,7 @@ class Controller(object):
     def door_CLOSING(self, door):
         message = ''
         curr_time = Utils.getTime()        
-        if Utils.getExpiredTime(door.tis.get(door.state), self.time_to_close, curr_time):
+        if Utils.isTimeExpired(door.tis.get(door.state), self.time_to_close, curr_time):
             return self.door_CLOSED(door) 
         return message
 
@@ -344,17 +344,17 @@ class Controller(object):
         message = '' 
         curr_time = Utils.getTime()
         etime = Utils.elapsed_time(int(curr_time - door.tis.get(door.state))) 
-        cur_dt = time.strftime("%H:%M:%S", time.localtime(time.time()))
+        cur_dt = Utils.epochToDatetime(curr_time).strftime(Utils.TIMEFORMAT)
 
-        if door.send_open_im == True and Utils.getExpiredTime(door.tis.get(door.state), self.time_to_report_open, curr_time):
+        if door.send_open_im == True and Utils.isTimeExpired(door.tis.get(door.state), self.time_to_report_open, curr_time):
             door.send_open_im = False
             message = '%s is %s at %s' % (door.name, door.state, cur_dt)
 
-        if Utils.getExpiredTime(door.tis.get(Utils.STILLOPEN), self.time_to_report_still_open, curr_time):
-            door.tis[Utils.STILLOPEN] = curr_time 
+        if Utils.isTimeExpired(door.tis.get(Utils.STILLOPEN), self.time_to_report_still_open, curr_time):
+            door.tis[Utils.STILLOPEN] = Utils.roundUpMins(curr_time)
             message = '%s is still %s at %s' % (door.name, door.state, cur_dt)
 
-        #if self.time_to_force_close != None and Utils.getExpiredTime(door.tis.get(Utils.FORCECLOSE), self.time_to_force_close, curr_time):
+        #if self.time_to_force_close != None and Utils.isTimeExpired(door.tis.get(Utils.FORCECLOSE), self.time_to_force_close, curr_time):
         #    door.tis[Utils.FORCECLOSE] = curr_time
         #    message = '%s force closed %s->%s at %s (%s)' % (door.name, door.state, Utils.CLOSED, cur_dt, etime)
         #    door.toggle_relay()
@@ -364,7 +364,7 @@ class Controller(object):
     def door_OPENING(self, door):
         curr_time = Utils.getTime()
         message = ''
-        if Utils.getExpiredTime(door.tis.get(door.state), self.time_to_open, curr_time):
+        if Utils.isTimeExpired(door.tis.get(door.state), self.time_to_open, curr_time):
             #self.logger.info("%s %s->%s" % (door.name, door.state, OPEN))
             door.state = Utils.OPEN
             door.setOpenState(curr_time) 
@@ -427,6 +427,7 @@ class Controller(object):
 
     def send_text(self, msg):
         self.logger = logging.getLogger(__name__)
+
 	if Utils.is_too_early():
             return
 
