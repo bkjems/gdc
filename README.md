@@ -1,6 +1,5 @@
 # gdc
-Garage Door Controller
-
+Garage Door Controller (gdc)
 
 Launch at startup
 see /etc/rc.local
