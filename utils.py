@@ -2,7 +2,7 @@
 """Utility methods to monitor and control garage doors via a raspberry pi."""
 import time
 import datetime
-import utils as Utils
+import utils as Utils 
 from enum import Enum
 from datetime import timedelta
 from time import gmtime
@@ -35,6 +35,33 @@ DATEFORMAT = '%m-%d-%Y %H:%M:%S'
 global TIMEFORMAT
 TIMEFORMAT = '%H:%M:%S'
 
+global YEAR 
+YEAR = 'yr'
+
+global WEEK
+WEEK= 'wk'
+
+global DAY 
+DAY = 'day'
+
+global HOUR
+HOUR = 'hr'
+
+global MIN
+MIN = 'm'
+
+global SEC
+SEC = 's'
+
+TIME_DURATION_UNITS = (
+    (YEAR, 60*60*24*365),
+    (WEEK, 60*60*24*7),
+    (DAY,  60*60*24),
+    (HOUR, 60*60),
+    (MIN,  60),
+    (SEC,  1) 
+)
+
 class WEEKDAYS(Enum):
     # Enum for days of the week.
     Mon = 0
@@ -52,45 +79,31 @@ def getDateTime():
     return datetime.datetime.now()
 
 def elapsed_time(total_seconds):
-    """Formats total seconds into a human readable format."""
-    # Helper vars:
-    MINUTE  = 60
-    HOUR    = MINUTE * 60
-    DAY     = HOUR * 24
-    YEAR    = DAY * 7 * 52
+    if total_seconds == 0:
+        return 'inf'
+    save_total_seconds = total_seconds
+    parts = []
+    _min = 0
+    sec  = 0 
+    for unit, div in TIME_DURATION_UNITS:
+        amount, total_seconds = divmod(int(total_seconds), div)
+        if amount > 0:
+	    if unit == MIN:
+	        _min= amount
+	    elif unit == SEC:
+	        sec = amount
+	    else:
+	        parts.append('{} {}{}'.format(amount, unit, "" if amount == 1 else "s")) 
+    if _min  > 0 or sec > 0:
+	if save_total_seconds <= 60 or (_min <= 0 and sec > 0):
+            parts.append('{}s'.format("60" if sec == 0 else str(sec).zfill(2)))
+	else:
+            parts.append('{}:{}'.format("00" if _min == 0 else str(_min).zfill(2), "00" if sec == 0 else str(sec).zfill(2)))
 
-    year    = int(total_seconds / YEAR)
-    days    = int(total_seconds / DAY)
-    hours   = int((total_seconds % DAY) / HOUR)
-    minutes = int((total_seconds % HOUR) / MINUTE)
-    seconds = int(total_seconds % MINUTE)
-
-    ret = ''
-    if year > 0:
-        ret += str(year) + " " + (year == 1 and "yr" or "yrs" ) + ", "
-
-    if days > 0:
-        ret += str(days) + " " + (days == 1 and "day" or "days" ) + ", "
-
-    if total_seconds < 3600:
-        if total_seconds <= 60:
-            ret += "%ds" % (total_seconds)
-        else:
-            ret += "%dm" % (minutes)
-            if seconds > 0:
-                ret += " %ds" % (seconds)
-    elif total_seconds < 86400:
-        ret += "%d%s" % (hours, (hours == 1 and "hr" or  "hrs"))
-        if minutes > 0 or seconds > 0:
-            ret += " %02d:%02d" % (minutes, seconds)
-    else:
-        ret += "%02d:%02d" % (hours, minutes)
-
-    return ret
+    return ', '.join(parts)
 
 def is_day_of_week(self, day_of_week_num):
     """Return the day of the week as an integer, where Monday is 0 and Sunday is 6."""
-
     if self.on_days_of_week == '':
         return True
 
@@ -117,7 +130,6 @@ def is_too_early_withTime(time_now):
         return False
 
     return(datetime.time(3, 58) <= time_now <= datetime.time(4, 5))
-
 
 def isTimeExpired(tis, alert_time, curr_time):
     if alert_time <= 0:
@@ -176,3 +188,4 @@ def roundUpDateTime(dt):
     ft = timedelta(hours=+hr, minutes=+(nm-dt.minute-1), seconds=+(60-dt.second))
 
     return dt + ft
+
