@@ -140,21 +140,19 @@ class Test(unittest.TestCase):
         rv = Utils.is_time_between(c,datetime.time(3,1))
         self.assertTrue(rv)
 
-    def testelapsedTimeSeconds(self):
-	rv = Utils.elapsed_time(60)
-        self.assertEqual('60s', rv)
-
-    def testelapsedTimeMinutes(self):
-	rv = Utils.elapsed_time(160)
-        self.assertEqual('2m 40s', rv)
-
-    def testelapsedTimeHours(self):
-	rv = Utils.elapsed_time(4560)
-        self.assertEqual('1hr 16:00', rv)
-
-    def testelapsedTimeDays(self):
-        rv = Utils.elapsed_time(144560)
-        self.assertEqual('1 day, 16:09', rv)
+    def testelapsedTimes(self):
+        self.assertEqual('43s', Utils.elapsed_time(43))
+        self.assertEqual('60s', Utils.elapsed_time(60))
+        self.assertEqual('01:05', Utils.elapsed_time(65))
+        self.assertEqual('1 hr', Utils.elapsed_time(3600))
+        self.assertEqual('1 hr, 16:03', Utils.elapsed_time(4563))
+        self.assertEqual('1 day', Utils.elapsed_time(86400))
+        self.assertEqual('1 day, 05s', Utils.elapsed_time(86405))
+        self.assertEqual('2 days, 7 hrs, 12:00', Utils.elapsed_time(198720))
+        self.assertEqual('1 wk, 1 day, 1 hr, 04s', Utils.elapsed_time(694804))
+        self.assertEqual('1 wk, 1 day, 1 hr, 01:01', Utils.elapsed_time(694861))
+        self.assertEqual('3 wks, 3 days, 19 hrs, 42:40', Utils.elapsed_time(2144560))
+        self.assertEqual('1 yr, 1 wk, 1 day, 1 hr, 02:40', Utils.elapsed_time(32230960))
 
     def testIsTimeExpired(self):
         c = self.setup()
@@ -190,6 +188,7 @@ class Test(unittest.TestCase):
 	    datetime.datetime.strptime("11-01-2020 00:00:00", Utils.DATEFORMAT))
         self.assertEqual(Utils.roundUp_string("01-02-2020 14:50:10"), 
 	    datetime.datetime.strptime("01-02-2020 14:50:00", Utils.DATEFORMAT))
+
 #
 # sudo python controller_test.py -v"
 #
