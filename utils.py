@@ -3,6 +3,7 @@
 import time
 import datetime
 import utils as Utils 
+import paho.mqtt.publish as publish
 from enum import Enum
 from datetime import timedelta
 from time import gmtime
@@ -189,3 +190,5 @@ def roundUpDateTime(dt):
 
     return dt + ft
 
+def publishMQTT(server, topic, msg, username, password):
+    publish.single(topic, msg, hostname=server, auth={'username':username, 'password':password})
