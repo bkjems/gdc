@@ -9,6 +9,7 @@ import time
 import smtplib
 import sys
 import urllib
+import Adafruit_DHT as dht
 
 import RPi.GPIO as gpio
 import utils as Utils
@@ -206,6 +207,15 @@ class Controller(object):
         self.to_time = c['to_time']
         self.alert_type = c['alert_type']
 
+        c = self.config['mqtt']
+        self.mqtt_server = c['server']
+        self.mqtt_username = c['username']
+        self.mqtt_password = c['password']
+
+        c = self.config['mqtt']['topics']
+        self.mqtt_topic_garage = c['garage']
+        self.mqtt_topic_temperature= c['temperature']
+
         for arg in sys.argv:
             if str(arg) == 'debug':
                 # ex. python controller.py debug -v
@@ -316,8 +326,6 @@ class Controller(object):
         curr_time = Utils.getTime()
 
         last_open_msg = "%s" % (Utils.elapsed_time(int(curr_time - door.tslo)))
-
-        #self.logger.info("%s %s->%s" % (door.name, door.state, CLOSED))
         self.setTimeSinceLastOpenFromFile(door.id)
         door.tslo = self.getTimeSinceLastOpenFromFile(door.id)
         door.state = Utils.CLOSED 
@@ -327,6 +335,7 @@ class Controller(object):
         door.tis[door.state] = curr_time 
 
         cur_dt = Utils.epochToDatetime(curr_time).strftime(Utils.TIMEFORMAT)
+	self.publish_garage_event(door, Utils.CLOSED)
         if door.send_open_im == False:
             message = '%s was %s at %s (%s) away for(%s)' % (door.name, door.state, cur_dt, etime, last_open_msg)
         else:
@@ -364,6 +373,8 @@ class Controller(object):
     def door_OPENING(self, door):
         curr_time = Utils.getTime()
         message = ''
+
+	self.publish_garage_event(door, Utils.OPENING)
         if Utils.isTimeExpired(door.tis.get(door.state), self.time_to_open, curr_time):
             #self.logger.info("%s %s->%s" % (door.name, door.state, OPEN))
             door.state = Utils.OPEN
@@ -407,6 +418,26 @@ class Controller(object):
             self.send_msg(message)
 
         self.updateHandler.handle_updates()
+
+    def publish_temperature_event(self, temp):
+        Utils.publishMQTT(self.mqtt_server, self.mqtt_topic_temperature, temp, self.mqtt_username,self.mqtt_password)
+
+    def publish_garage_event(self, door, msg):
+	pubMsg = ""
+        if Utils.isDebugging:
+	    pubMsg = "debug_"
+
+	if msg == Utils.OPENING and door.send_open_mqtt == True:
+            door.send_open_mqtt = False
+            door.send_close_mqtt = True
+	    pubMsg += door.name+"|"+msg
+	elif msg == Utils.CLOSED and door.send_close_mqtt == True:
+            door.send_close_mqtt = False
+            door.send_open_mqtt = True 
+	    pubMsg += door.name+"|"+msg
+
+	if pubMsg != "":
+	    Utils.publishMQTT(self.mqtt_server, self.mqtt_topic_garage, pubMsg, self.mqtt_username,self.mqtt_password)
 
     def can_send_alert(self):
         dt = Utils.getDateTime()
@@ -511,6 +542,16 @@ class Controller(object):
             return default
         return config[param]
 
+    def get_temperature(self):
+        h, t = dht.read_retry(dht.DHT22, 26)
+
+        if t is not None:
+            t = t * (9/5.0) + 32 # convert to fahrenheit
+
+        if h is not None and t is not None:
+            msg = "Temp={0:0.1f}F Humidity={1:0.1f}%".format(t,h)
+            publish_temperature_event(self, msg) 
+
     def run(self):
         root = File('www')
         root.putChild('upd', self.updateHandler)
@@ -521,6 +562,7 @@ class Controller(object):
         root.putChild('clk', ClickHandler(self))
         root.putChild('mot', ClickMotionTestHandler(self))
         task.LoopingCall(self.check_status).start(1.0)
+        #task.LoopingCall(self.get_temperature).start(1.0*60*60) # every hour
 
         site = server.Site(root)
 

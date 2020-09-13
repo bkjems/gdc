@@ -15,6 +15,8 @@ class Door(object):
         self.state = None
         self.send_open_im = True
         self.send_open_im_debug = False
+        self.send_open_mqtt= True
+        self.send_close_mqtt= True
         self.tis = {
             Utils.CLOSED:0,
             Utils.OPEN:0,
