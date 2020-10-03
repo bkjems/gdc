@@ -4,13 +4,17 @@ import time
 import datetime
 import utils as Utils 
 import paho.mqtt.publish as publish
+import Adafruit_DHT as dht
+import sqlite3
 from enum import Enum
 from datetime import timedelta
 from time import gmtime
 
+
 """global"""
 gfileCache = 'garageCache'
 isDebugging = False
+temperature_pin = ""
 
 global CLOSED
 CLOSED = 'closed'
@@ -192,3 +196,29 @@ def roundUpDateTime(dt):
 
 def publishMQTT(server, topic, msg, username, password):
     publish.single(topic, msg, hostname=server, auth={'username':username, 'password':password})
+
+def get_temperature(gpio):
+        try:
+            h, t = dht.read_retry(dht.DHT22, gpio)
+            if t is not None:
+                t = t * (9/5.0) + 32 # convert to fahrenheit
+            if h is not None and t is not None:
+                return "Temp={0:0.1f}F Humidity={1:0.1f}%".format(t,h)
+        except:
+            print "error reading read_temperature"
+        return ""
+
+def query_temperatures():
+    conn = sqlite3.connect('/home/pi/db/gdc')
+    c = conn.cursor()
+    c.execute('SELECT * FROM gdc_data WHERE event=\'garage_temperature\' ORDER BY id DESC LIMIT 30')
+
+    rows = c.fetchall()
+
+    data = ""
+    label = {}
+    for row in rows:
+        data += str(row[1] + " " +row[3])
+        data += "\n"
+
+    return data
