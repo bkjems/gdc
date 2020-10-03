@@ -9,8 +9,6 @@ import time
 import smtplib
 import sys
 import urllib
-import Adafruit_DHT as dht
-
 import RPi.GPIO as gpio
 import utils as Utils
 import door as Doors
@@ -39,6 +37,29 @@ class CloseAllHandler(Resource):
             return ''
         else:
             return 'All doors are closed.'
+
+class GetTempHandler(Resource):
+    isLeaf = True
+
+    def __init__ (self, controller):
+        Resource.__init__(self)
+        self.controller = controller
+
+    def render(self, request):
+    	temp = Utils.get_temperature(Utils.temperature_pin)
+        return "<html><body><pre>Current %s</pre></body></html>" % (temp)
+
+class TempsHandler(Resource):
+    isLeaf = True
+
+    def __init__ (self, controller):
+        Resource.__init__(self)
+        self.controller = controller
+
+    def render(self, request):
+	data = Utils.query_temperatures()
+        d = data.replace("<", "&lt")
+        return "<html><body><pre>%s</pre></body></html>" % (d)
 
 class LogHandler(Resource):
     isLeaf = True
@@ -155,18 +176,20 @@ class UpdateHandler(Resource):
         # set jsonp callback handler name if it exists
         if 'callback' in args:
             request.jsonpcallback =  args['callback'][0]
+	    #print "args "+args
 
         # set lastupdate if it exists
         if 'lastupdate' in args:
             request.lastupdate = float(args['lastupdate'][0])
-            #print "request received " + str(request.lastupdate)
+            #print "request received " + str(request.lastupdate) + "args " + str(args)
         else:
             request.lastupdate = 0
-            print "request received " + str(request.lastupdate)
+            #print "request received " + str(request.lastupdate)
 
         # Can we accommodate this request now?
         updates = self.controller.get_updates(request.lastupdate)
         if updates != []:
+	    #print "updates "+str(updates)
             return self.format_updates(request, updates)
 
         request.notifyFinish().addErrback(lambda x: self.delayed_requests.remove(request))
@@ -191,6 +214,7 @@ class Controller(object):
         self.use_alerts = c['use_alerts']
         self.motion_pin = c['motion_pin']
         self.file_name = c['logfile']
+        Utils.temperature_pin = c['temperature_pin']
 
         c = self.config['config']['times']
         self.time_to_close = c['to_close_door']
@@ -419,8 +443,13 @@ class Controller(object):
 
         self.updateHandler.handle_updates()
 
-    def publish_temperature_event(self, temp):
-        Utils.publishMQTT(self.mqtt_server, self.mqtt_topic_temperature, temp, self.mqtt_username,self.mqtt_password)
+    def publish_temperature_event(self, msg):
+        if Utils.isDebugging:
+            logging.info("publish_temperature - %s" % (msg))
+	    return
+
+	if msg != "":
+            Utils.publishMQTT(self.mqtt_server, self.mqtt_topic_temperature, msg, self.mqtt_username,self.mqtt_password)
 
     def publish_garage_event(self, door, msg):
 	pubMsg = ""
@@ -542,15 +571,10 @@ class Controller(object):
             return default
         return config[param]
 
-    def get_temperature(self):
-        h, t = dht.read_retry(dht.DHT22, 26)
-
-        if t is not None:
-            t = t * (9/5.0) + 32 # convert to fahrenheit
-
-        if h is not None and t is not None:
-            msg = "Temp={0:0.1f}F Humidity={1:0.1f}%".format(t,h)
-            publish_temperature_event(self, msg) 
+    def get_temp(self):
+    	msg = Utils.get_temperature(Utils.temperature_pin)
+	if msg != "": 
+            self.publish_temperature_event(msg) 
 
     def run(self):
         root = File('www')
@@ -558,11 +582,13 @@ class Controller(object):
         root.putChild('cfg', ConfigHandler(self)) # this prints the doors on the webpage
         root.putChild('upt', UptimeHandler(self))
         root.putChild('log', LogHandler(self))
+        root.putChild('temps', TempsHandler(self))
+        root.putChild('gettemp', GetTempHandler(self))
         root.putChild('closeall', CloseAllHandler(self))
         root.putChild('clk', ClickHandler(self))
         root.putChild('mot', ClickMotionTestHandler(self))
         task.LoopingCall(self.check_status).start(1.0)
-        #task.LoopingCall(self.get_temperature).start(1.0*60*60) # every hour
+        task.LoopingCall(self.get_temp).start(1.0*60*60) # every hour
 
         site = server.Site(root)
 
@@ -573,8 +599,9 @@ class Controller(object):
             reactor.listenSSL(self.port_secure, site, sslContext)  # @UndefinedVariable
 
         reactor.run()  # @UndefinedVariable
+
 if __name__ == '__main__':
-    config_file = open('config.json')
+    config_file = open('/home/pi/gdc/config.json')
     controller = Controller(json.load(config_file))
     config_file.close()
     controller.run()

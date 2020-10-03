@@ -24,6 +24,26 @@ function clickLogs()
     })
 };
 
+function clickGetTemp()
+{
+    $.ajax({
+        url:"gettemp",
+        success: function(data) {
+            $("#log_message").html(data);
+        }
+    })
+};
+
+function clickTemps()
+{
+    $.ajax({
+        url:"temps",
+        success: function(data) {
+            $("#log_message").html(data);
+        }
+    })
+};
+
 function clickMotionTest()
 {
     $.ajax({

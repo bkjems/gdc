@@ -1,66 +1,69 @@
 {
-	"config": {
-		"use_https": false,
-		"use_auth": false,
-		"use_alerts": true,
-		"motion_pin": null,
-		"logfile": "/var/log/gdc.log",
-		"times": {
-		    "to_close_door": 10,
-		    "to_open_door": 10,
-		    "to_report_open": 140,
-		    "to_report_still_open": 1200,
-		    "to_force_close":3600 
-	        }
-	    },
-	"alerts": {
-		"when_opened": true,
-		"when_closed": true,
-		"from_time": "00:01",
-		"to_time": "23:59",
-		"on_days_of_week": "Mon,Tue,Wed,Thu,Fri,Sat,Sun",
-		"alert_type": "smtp",
-		"smtp": {
-			"smtphost": "smtp.gmail.com",
-			"smtpport": 587,
-			"smtp_tls": true,
-			"username": "",
-			"password": "",
-			"to_email": ""
-		},
-		"pushbullet": {
-			"access_token": ""
+        "config": {
+                "use_https": true,
+                "use_auth": true,
+                "use_alerts": true,
+                "motion_pin": null,
+                "temperature_pin": 0,
+                "logfile": "garage.log",
+                "times": {
+                    "to_close_door": 10,
+                    "to_open_door": 10,
+                    "to_report_open": 140,
+                    "to_report_still_open": 1200,
+                    "to_force_close":3600
+                }
+            },
+        "alerts": {
+                "when_opened": true,
+                "when_closed": true,
+                "from_time": "00:01",
+                "to_time": "23:59",
+                "on_days_of_week": "Mon,Tue,Wed,Thu,Fri,Sat,Sun",
+                "alert_type": "pushover",
+                "smtp": {
+                        "smtphost": "",
+                        "smtpport": 0,
+                        "smtp_tls": true,
+                        "username": "",
+                        "password": "",
+                        "to_email": ""
+                },
+                "pushbullet": {
+                        "access_token": ""
 
-		},
-		"pushover": {
-			"user_key": "",
-			"api_key": ""
-		}
-	},
-	"site": {
-		"port": 0,
-		"port_secure": 0,
-		"username": "",
-		"password": "",
-		"ssl_key": "",
-		"ssl_cert": ""
-	},
-"doors": {
-		"left": {
-			"id": "3rd Car",
-			"state": "UNKNOWN",
-			"send_open_im": true,
-			"relay_pin": ,
-			"state_pin": ,
-			"closed_value": 1
-		},
-		"right": {
-			"id": "2 Car",
-			"state": "UNKNOWN",
-			"send_open_im": true,
-			"relay_pin": ,
-			"state_pin": ,
-			"closed_value": 1
-		}
-	}
+                },
+                "pushover": {
+                        "user_key": "",
+                        "api_key": ""
+                }
+        },
+        "mqtt": {
+                "server":"",
+                "username": "",
+                "password":"",
+                "topics": {
+                        "garage": "garage/action",
+                        "temperature": "garage_temperature/action"
+                }
+        },
+        "site": {
+                "port" 0:,
+                "port_secure": 0,
+                "username": "",
+                "password":"",
+                "ssl_key":"",
+                "ssl_cert":""
+        },
+
+        "doors": {
+                "right": {
+                        "id": "2 Car",
+                        "state": "UNKNOWN",
+                        "send_open_im": true,
+                        "relay_pin":0 ,
+                        "state_pin":0,
+                        "closed_value": 1
+                }
+        }
 }
