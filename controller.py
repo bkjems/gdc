@@ -46,8 +46,9 @@ class GetTempHandler(Resource):
         self.controller = controller
 
     def render(self, request):
+	datetime = Utils.getDateTime()
     	temp = Utils.get_temperature(Utils.temperature_pin)
-        return "<html><body><pre>Current %s</pre></body></html>" % (temp)
+        return "<html><body><pre>%s Current %s</pre></body></html>" % (datetime.strftime(Utils.DATEFORMAT),temp)
 
 class TempsHandler(Resource):
     isLeaf = True
@@ -267,7 +268,7 @@ class Controller(object):
             self.debugMsg = "Debugging=%s" % Utils.isDebugging
             logging.getLogger('mylogger').setLevel(logging.NOTSET)
             logging.basicConfig(datefmt=date_fmt, format=log_fmt, level=log_level, filename=self.file_name)
-            rotatingHandler = logging.handlers.RotatingFileHandler(self.file_name, maxBytes=500000, backupCount=5)
+            rotatingHandler = logging.handlers.RotatingFileHandler(self.file_name, maxBytes=5000000, backupCount=3)
             rotatingHandler.setLevel(log_level)
             rotatingHandler.setFormatter(logging.Formatter(log_fmt))
             logging.getLogger('mylogger').addHandler(rotatingHandler)

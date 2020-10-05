@@ -198,15 +198,15 @@ def publishMQTT(server, topic, msg, username, password):
     publish.single(topic, msg, hostname=server, auth={'username':username, 'password':password})
 
 def get_temperature(gpio):
-        try:
-            h, t = dht.read_retry(dht.DHT22, gpio)
-            if t is not None:
-                t = t * (9/5.0) + 32 # convert to fahrenheit
-            if h is not None and t is not None:
-                return "Temp={0:0.1f}F Humidity={1:0.1f}%".format(t,h)
-        except:
-            print "error reading read_temperature"
-        return ""
+    try:
+        h, t = dht.read_retry(dht.DHT22, gpio)
+        if t is not None:
+            t = t * (9/5.0) + 32 # convert to fahrenheit
+        if h is not None and t is not None:
+            return "Temp={0:0.1f}F Humidity={1:0.1f}%".format(t,h)
+    except:
+        print "error reading read_temperature"
+    return ""
 
 def query_temperatures():
     conn = sqlite3.connect('/home/pi/db/gdc')
