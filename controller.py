@@ -11,6 +11,7 @@ import sys
 import urllib
 import RPi.GPIO as gpio
 import utils as Utils
+import db_utils as db_Utils
 import door as Doors
 import requests
 
@@ -48,7 +49,7 @@ class GetTempHandler(Resource):
         self.controller = controller
 
     def render(self, request):
-        datetime = Utils.getDateTime()
+        datetime = Utils.get_date_time()
         temp = Utils.get_temperature(Utils.temperature_pin)
         return "<html><body><pre>%s Current %s</pre></body></html>" % (datetime.strftime(Utils.DATEFORMAT),temp)
 
@@ -60,7 +61,7 @@ class TempsHandler(Resource):
         self.controller = controller
 
     def render(self, request):
-        data = Utils.query_temperatures("garage_temperature", 50)
+        data = db_Utils.query_temperatures("garage_temperature", 50)
         d = data.replace("<", "&lt")
         return "<html><body><pre>%s</pre></body></html>" % (d)
 
@@ -99,7 +100,7 @@ class ClickHandler(Resource):
 
     def render(self, request):
         d = request.args['id'][0]
-        door = self.controller.getDoor(d)
+        door = self.controller.get_door(d)
         if door != None and door.state != Utils.CLOSING and door.state != Utils.OPENING:
             door.toggle_relay()
 
@@ -111,8 +112,8 @@ class ClickWeatherHandler(Resource):
         self.controller = controller
 
     def render(self, request):
-        Utils.weatherAPI(requests,controller)
-        weather_info = Utils.query_day_temperature_data() 
+        Utils.query_weather_API(requests,controller)
+        weather_info = db_Utils.query_day_temperature_data() 
         return json.dumps(weather_info)
 
 class ClickGraphShedHandler(Resource):
@@ -122,7 +123,7 @@ class ClickGraphShedHandler(Resource):
         self.controller = controller
 
     def render(self, request):
-        data = Utils.query_temperature_data("shed_temperature") 
+        data = db_Utils.query_temperature_data("shed_temperature") 
         request.setHeader('Content-Type', 'application/json')
         return json.dumps(data)
 
@@ -134,7 +135,7 @@ class ClickGraphHandler(Resource):
         self.controller = controller
 
     def render(self, request):
-        data = Utils.query_temperature_data("garage_temperature") 
+        data = db_Utils.query_temperature_data("garage_temperature") 
         request.setHeader('Content-Type', 'application/json')
         return json.dumps(data)
 
@@ -147,7 +148,7 @@ class ClickMotionTestHandler(Resource):
 
     def render(self, request):
         #self.controller.motion('testpin')
-        data = Utils.query_garageOpenClose()
+        data = db_Utils.query_garage_open_close()
         d = data.replace("<", "&lt")
         return "<html><body><pre>%s</pre></body></html>" % (d)
 
@@ -174,7 +175,7 @@ class UptimeHandler(Resource):
         except:
             return "Cannot open uptime file: /proc/uptime"
 
-        return Utils.elapsed_time(float(contents[0]))
+        return Utils.get_elapsed_time(float(contents[0]))
 
     def render(self, request):
         request.setHeader('Content-Type', 'application/json')
@@ -195,7 +196,7 @@ class UpdateHandler(Resource):
                 self.delayed_requests.remove(request)
 
     def format_updates(self, request, update):
-        response = json.dumps({'timestamp': int(Utils.getTime()), 'update':update})
+        response = json.dumps({'timestamp': int(Utils.get_time()), 'update':update})
         if hasattr(request, 'jsonpcallback'):
             return request.jsonpcallback +'('+response+')'
         else:
@@ -332,7 +333,7 @@ class Controller(object):
         # setup Doors from config file
         self.doors = [Doors.Door(x, c) for (x, c) in sorted(config['doors'].items())]
         for door in self.doors:
-            door.setup(gpio, self.getTimeSinceLastOpenFromFile(door.id)) 
+            door.setup(gpio, self.get_time_since_last_open(door.id)) 
             self.set_initial_text_msg(door) 
 
         # setup alerts
@@ -353,14 +354,14 @@ class Controller(object):
             logging.info(self.initMsg)
             self.send_msg(self.initMsg) 
 
-    def setTimeSinceLastOpenFromFile(self, doorName):
-        self.fileCache[doorName] = Utils.getTime()
+    def set_time_since_last_open(self, doorName):
+        self.fileCache[doorName] = Utils.get_time()
 
     """get time since last open, if doesn't exist default to current time and return value"""
-    def getTimeSinceLastOpenFromFile(self, doorName):
-        return(self.fileCache.setdefault(doorName, Utils.getTime()))
+    def get_time_since_last_open(self, doorName):
+        return(self.fileCache.setdefault(doorName, Utils.get_time()))
 
-    def getDoor(self, door_id):
+    def get_door(self, door_id):
         for door in self.doors:
             if (door.id == door_id):
                 return door
@@ -369,13 +370,13 @@ class Controller(object):
     """motion detected, reset time_in_state to the current time for all open doors, after the "open" message IM has been send (send=False)"""
     def motion(self, pin):
         if pin != None:
-            curr_time = Utils.getTime()
+            curr_time = Utils.get_time()
             for d in self.doors:
                 if d.state == Utils.OPEN and (d.send_open_im == False or d.send_open_im_debug == False):
                     if Utils.isDebugging:
-                        cur_dt = Utils.epochToDatetime(curr_time).strftime(Utils.TIMEFORMAT)
+                        cur_dt = Utils.epoch_to_datetime(curr_time).strftime(Utils.TIMEFORMAT)
                         logging.info("Motion detected, reset %s (%s)" % (d.name, cur_dt))
-                        d.setOpenState(curr_time)
+                        d.set_open_state(curr_time)
 
     def set_initial_text_msg(self, door):
         if len(self.initMsg) == 0:
@@ -387,18 +388,18 @@ class Controller(object):
 
     def door_CLOSED(self, door):
         message = ''
-        curr_time = Utils.getTime()
+        curr_time = Utils.get_time()
 
-        last_open_msg = "%s" % (Utils.elapsed_time(int(curr_time - door.tslo)))
-        self.setTimeSinceLastOpenFromFile(door.id)
-        door.tslo = self.getTimeSinceLastOpenFromFile(door.id)
+        last_open_msg = "%s" % (Utils.get_elapsed_time(int(curr_time - door.tslo)))
+        self.set_time_since_last_open(door.id)
+        door.tslo = self.get_time_since_last_open(door.id)
         door.state = Utils.CLOSED 
 
         ct = curr_time - door.tis.get(Utils.OPENING) 
-        etime = Utils.elapsed_time(int(ct))
+        etime = Utils.get_elapsed_time(int(ct))
         door.tis[door.state] = curr_time 
 
-        cur_dt = Utils.epochToDatetime(curr_time).strftime(Utils.TIMEFORMAT)
+        cur_dt = Utils.epoch_to_datetime(curr_time).strftime(Utils.TIMEFORMAT)
         self.publish_garage_event(door, Utils.CLOSED)
 
         if door.send_open_im == False:
@@ -409,23 +410,23 @@ class Controller(object):
 
     def door_CLOSING(self, door):
         message = ''
-        curr_time = Utils.getTime()        
-        if Utils.isTimeExpired(door.tis.get(door.state), self.time_to_close, curr_time):
+        curr_time = Utils.get_time()        
+        if Utils.is_time_expired(door.tis.get(door.state), self.time_to_close, curr_time):
             return self.door_CLOSED(door) 
         return message
 
     def door_OPEN(self, door):
         message = '' 
-        curr_time = Utils.getTime()
+        curr_time = Utils.get_time()
         #etime = Utils.elapsed_time(int(curr_time - door.tis.get(door.state))) 
-        cur_dt = Utils.epochToDatetime(curr_time).strftime(Utils.TIMEFORMAT)
+        cur_dt = Utils.epoch_to_datetime(curr_time).strftime(Utils.TIMEFORMAT)
 
-        if door.send_open_im == True and Utils.isTimeExpired(door.tis.get(door.state), self.time_to_report_open, curr_time):
+        if door.send_open_im == True and Utils.is_time_expired(door.tis.get(door.state), self.time_to_report_open, curr_time):
             door.send_open_im = False
             message = '%s is %s at %s' % (door.name, door.state, cur_dt)
 
-        if Utils.isTimeExpired(door.tis.get(Utils.STILLOPEN), self.time_to_report_still_open, curr_time):
-            door.tis[Utils.STILLOPEN] = Utils.roundUpMins(curr_time)
+        if Utils.is_time_expired(door.tis.get(Utils.STILLOPEN), self.time_to_report_still_open, curr_time):
+            door.tis[Utils.STILLOPEN] = Utils.round_up_minutes(curr_time)
             message = '%s is still %s at %s' % (door.name, door.state, cur_dt)
 
         #if self.time_to_force_close != None and Utils.isTimeExpired(door.tis.get(Utils.FORCECLOSE), self.time_to_force_close, curr_time):
@@ -436,11 +437,11 @@ class Controller(object):
         return message
 
     def door_OPENING(self, door):
-        curr_time = Utils.getTime()
+        curr_time = Utils.get_time()
         message = ''
 
         self.publish_garage_event(door, Utils.OPENING)
-        if Utils.isTimeExpired(door.tis.get(door.state), self.time_to_open, curr_time):
+        if Utils.is_time_expired(door.tis.get(door.state), self.time_to_open, curr_time):
             #self.logger.info("%s %s->%s" % (door.name, door.state, OPEN))
             door.state = Utils.OPEN
             door.setOpenState(curr_time) 
@@ -456,7 +457,7 @@ class Controller(object):
     def check_door_status(self, door):
         self.logger = logging.getLogger(__name__)
         message = '' 
-        curr_time = Utils.getTime()
+        curr_time = Utils.get_time()
         pin_state = door.get_state_pin()
 
         if pin_state != door.state:
@@ -490,7 +491,7 @@ class Controller(object):
             return
 
         if msg != "":
-            Utils.publishMQTT(self.mqtt_server, self.mqtt_topic_temperature, msg, self.mqtt_username,self.mqtt_password)
+            Utils.publish_MQTT(self.mqtt_server, self.mqtt_topic_temperature, msg, self.mqtt_username,self.mqtt_password)
 
     def publish_garage_event(self, door, msg):
         pubMsg = ""
@@ -507,10 +508,10 @@ class Controller(object):
             pubMsg += door.name+"|"+msg
 
         if pubMsg != "":
-            Utils.publishMQTT(self.mqtt_server, self.mqtt_topic_garage, pubMsg, self.mqtt_username,self.mqtt_password)
+            Utils.publish_MQTT(self.mqtt_server, self.mqtt_topic_garage, pubMsg, self.mqtt_username,self.mqtt_password)
 
     def can_send_alert(self):
-        dt = Utils.getDateTime()
+        dt = Utils.get_date_time()
         if self.use_alerts:
             return Utils.is_day_of_week(self, dt.weekday()) and Utils.is_time_between(self, dt.time()) 
         return False
@@ -620,7 +621,7 @@ class Controller(object):
 
     def get_weather(self):
         logging.info("calling weatherAPI")
-        Utils.weatherAPI(requests, controller)
+        Utils.query_weather_API(requests, controller)
 
     def run(self):
         root = File('www')

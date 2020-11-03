@@ -31,13 +31,13 @@ class Door(object):
         self.state = self.get_state_pin()
 
         if self.state == Utils.OPEN:
-            curr_time = Utils.getTime()
-            self.setOpenState(curr_time)
+            curr_time = Utils.get_time()
+            self.set_open_state(curr_time)
             self.tis[Utils.OPENING] = curr_time
         self.send_open_im = True
         self.tslo = tslo_value
 
-    def setOpenState(self, curr_time):
+    def set_open_state(self, curr_time):
         self.tis[self.state] = curr_time
         self.tis[Utils.STILLOPEN] = curr_time
         self.tis[Utils.FORCECLOSE] = curr_time

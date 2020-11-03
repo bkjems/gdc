@@ -22,13 +22,13 @@ class Test(unittest.TestCase):
 
     def testDoorNameIsNamedRight(self):
 	c = self.setup() 
-	door = c.getDoor("right")
+	door = c.get_door("right")
         assert door is not None
         self.assertTrue(door.id == "right")
 
     def testDoorOpenAtStartup(self):
 	c = self.setup() 
-	door = c.getDoor("right")
+	door = c.get_door("right")
 	door.test_state_pin = Utils.OPEN
 	door.state = Utils.OPEN
 	door.toggle_relay()
@@ -36,7 +36,7 @@ class Test(unittest.TestCase):
 
     def testDoorOpenLongerThanTTW(self):
 	c = self.setup() 
-	door = c.getDoor("right")
+	door = c.get_door("right")
 	c.time_to_report_open= 1
 	c.time_to_close = 0
 	door.toggle_relay()
@@ -47,7 +47,7 @@ class Test(unittest.TestCase):
 
     def testOpenNoApproxTimeInOpen(self):
 	c = self.setup() 
-	door = c.getDoor("right")
+	door = c.get_door("right")
 	c.time_to_open = 0
 	door.toggle_relay()
 	time.sleep(2)
@@ -56,7 +56,7 @@ class Test(unittest.TestCase):
 
     def testOpenCloseNoApproxTimeInClose(self):
 	c = self.setup() 
-	door = c.getDoor("right")
+	door = c.get_door("right")
 	c.time_to_close= 0
 	c.time_to_open = 0
 
@@ -70,7 +70,7 @@ class Test(unittest.TestCase):
 
     def testOpeningWithApproxTimeToOpen(self):
 	c = self.setup() 
-	d = c.getDoor("right")
+	d = c.get_door("right")
 	d.state = "closed" 
 	c.time_to_open=5
 	d.toggle_relay()
@@ -79,7 +79,7 @@ class Test(unittest.TestCase):
  
     def testClosingWithApproxTimeToClose(self):
 	c = self.setup() 
-	door = c.getDoor("right")
+	door = c.get_door("right")
 	door.state = "open"
 	door.test_state_pin= "open"
 	door.time_to_close= 5
@@ -97,11 +97,11 @@ class Test(unittest.TestCase):
     def testIsTooEarly(self):
         self.setup() 
         dt = datetime.datetime.strptime('03:55', '%H:%M').time()
-        self.assertFalse(Utils.is_too_early_withTime(dt))
+        self.assertFalse(Utils.is_too_early_with_time(dt))
         dt = datetime.datetime.strptime('04:00', '%H:%M').time()
-        self.assertTrue(Utils.is_too_early_withTime(dt)) 
-        self.assertFalse(Utils.is_too_early_withTime(Utils.getDateTime().time()))
-        self.assertFalse(Utils.is_too_early_withTime(None))
+        self.assertTrue(Utils.is_too_early_with_time(dt)) 
+        self.assertFalse(Utils.is_too_early_with_time(Utils.get_date_time().time()))
+        self.assertFalse(Utils.is_too_early_with_time(None))
         self.assertFalse(Utils.is_too_early())
 
     def testIsDayOfWeekValid(self):
@@ -141,59 +141,59 @@ class Test(unittest.TestCase):
         self.assertTrue(rv)
 
     def testelapsedTimes(self):
-        self.assertEqual('43s', Utils.elapsed_time(43))
-        self.assertEqual('60s', Utils.elapsed_time(60))
-        self.assertEqual('01:05', Utils.elapsed_time(65))
-        self.assertEqual('1 hr', Utils.elapsed_time(3600))
-        self.assertEqual('1 hr, 16:03', Utils.elapsed_time(4563))
-        self.assertEqual('1 day', Utils.elapsed_time(86400))
-        self.assertEqual('1 day, 05s', Utils.elapsed_time(86405))
-        self.assertEqual('2 days, 7 hrs, 12:00', Utils.elapsed_time(198720))
-        self.assertEqual('1 wk, 1 day, 1 hr, 04s', Utils.elapsed_time(694804))
-        self.assertEqual('1 wk, 1 day, 1 hr, 01:01', Utils.elapsed_time(694861))
-        self.assertEqual('3 wks, 3 days, 19 hrs, 42:40', Utils.elapsed_time(2144560))
-        self.assertEqual('1 yr, 1 wk, 1 day, 1 hr, 02:40', Utils.elapsed_time(32230960))
+        self.assertEqual('43s', Utils.get_elapsed_time(43))
+        self.assertEqual('60s', Utils.get_elapsed_time(60))
+        self.assertEqual('01:05', Utils.get_elapsed_time(65))
+        self.assertEqual('1 hr', Utils.get_elapsed_time(3600))
+        self.assertEqual('1 hr, 16:03', Utils.get_elapsed_time(4563))
+        self.assertEqual('1 day', Utils.get_elapsed_time(86400))
+        self.assertEqual('1 day, 05s', Utils.get_elapsed_time(86405))
+        self.assertEqual('2 days, 7 hrs, 12:00', Utils.get_elapsed_time(198720))
+        self.assertEqual('1 wk, 1 day, 1 hr, 04s', Utils.get_elapsed_time(694804))
+        self.assertEqual('1 wk, 1 day, 1 hr, 01:01', Utils.get_elapsed_time(694861))
+        self.assertEqual('3 wks, 3 days, 19 hrs, 42:40', Utils.get_elapsed_time(2144560))
+        self.assertEqual('1 yr, 1 wk, 1 day, 1 hr, 02:40', Utils.get_elapsed_time(32230960))
 
     def testIsTimeExpired(self):
         self.setup()
-        tis = Utils.datetimeToEpoch(datetime.datetime.strptime("06-14-2020 11:00:00", Utils.DATEFORMAT))
+        tis = Utils.datetime_to_epoch(datetime.datetime.strptime("06-14-2020 11:00:00", Utils.DATEFORMAT))
         alert_time =  1200 # 20 mins
-        curr_time = Utils.datetimeToEpoch(datetime.datetime.strptime("06-14-2020 11:10:00", Utils.DATEFORMAT))
-        self.assertFalse(Utils.isTimeExpired(tis, alert_time, curr_time))       
+        curr_time = Utils.datetime_to_epoch(datetime.datetime.strptime("06-14-2020 11:10:00", Utils.DATEFORMAT))
+        self.assertFalse(Utils.is_time_expired(tis, alert_time, curr_time))       
 
-        curr_time = Utils.datetimeToEpoch(datetime.datetime.strptime("06-14-2020 11:20:01", Utils.DATEFORMAT))
-        self.assertTrue(Utils.isTimeExpired(tis, alert_time, curr_time))
+        curr_time = Utils.datetime_to_epoch(datetime.datetime.strptime("06-14-2020 11:20:01", Utils.DATEFORMAT))
+        self.assertTrue(Utils.is_time_expired(tis, alert_time, curr_time))
 
         alert_time =  0 
-        self.assertTrue(Utils.isTimeExpired(tis, alert_time, curr_time))
+        self.assertTrue(Utils.is_time_expired(tis, alert_time, curr_time))
 
     def testStillOpen_mktime(self):
         c = self.setup()
-        door = c.getDoor("right")
-        door.tis[Utils.STILLOPEN] = Utils.roundUpMins(Utils.getTime())
+        door = c.get_door("right")
+        door.tis[Utils.STILLOPEN] = Utils.round_up_minutes(Utils.get_time())
         curr_time = datetime.datetime.strptime("06-14-2020 13:11:05", Utils.DATEFORMAT)
-        door.tis[Utils.STILLOPEN] = Utils.roundUpMins(Utils.datetimeToEpoch(curr_time))
+        door.tis[Utils.STILLOPEN] = Utils.round_up_minutes(Utils.datetime_to_epoch(curr_time))
         self.assertEqual(1592162100.0, door.tis[Utils.STILLOPEN])
 
     def testRoundUp(self):
-        self.assertEqual(Utils.roundUp_string("07-01-2020 14:09:00"), 
+        self.assertEqual(Utils.round_up_string("07-01-2020 14:09:00"), 
 	    datetime.datetime.strptime("07-01-2020 14:10:00", Utils.DATEFORMAT))
-        self.assertEqual(Utils.roundUp_string("12-31-2020 23:59:10"), 
+        self.assertEqual(Utils.round_up_string("12-31-2020 23:59:10"), 
 	    datetime.datetime.strptime("01-01-2021 00:00:00", Utils.DATEFORMAT))
-        self.assertEqual(Utils.roundUp_string("12-11-2020 23:59:10"), 
+        self.assertEqual(Utils.round_up_string("12-11-2020 23:59:10"), 
 	    datetime.datetime.strptime("12-12-2020 00:00:00", Utils.DATEFORMAT))
-        self.assertEqual(Utils.roundUp_string("12-13-2020 11:59:10"), 
+        self.assertEqual(Utils.round_up_string("12-13-2020 11:59:10"), 
 	    datetime.datetime.strptime("12-13-2020 12:00:00", Utils.DATEFORMAT))
-        self.assertEqual(Utils.roundUp_string("10-31-2020 23:59:10"), 
+        self.assertEqual(Utils.round_up_string("10-31-2020 23:59:10"), 
 	    datetime.datetime.strptime("11-01-2020 00:00:00", Utils.DATEFORMAT))
-        self.assertEqual(Utils.roundUp_string("01-02-2020 14:50:10"), 
+        self.assertEqual(Utils.round_up_string("01-02-2020 14:50:10"), 
 	    datetime.datetime.strptime("01-02-2020 14:50:00", Utils.DATEFORMAT))
 
     def testDiffBetween2Dates(self):
         dt1 = datetime.datetime.strptime("10-10-2020 17:31:57", "%m-%d-%Y %H:%M:%S")
         dt2 = datetime.datetime.strptime("10-10-2020 17:34:58", "%m-%d-%Y %H:%M:%S")
         total_secs = (dt2-dt1).total_seconds()
-        time_diff = "%s" % (Utils.elapsed_time(int(total_secs)))
+        time_diff = "%s" % (Utils.get_elapsed_time(int(total_secs)))
         self.assertEqual("03:01", time_diff) 
 
 
