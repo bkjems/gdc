@@ -95,7 +95,7 @@ class Test(unittest.TestCase):
         self.assertFalse(rv)
 
     def testIsTooEarly(self):
-	c = self.setup() 
+        self.setup() 
         dt = datetime.datetime.strptime('03:55', '%H:%M').time()
         self.assertFalse(Utils.is_too_early_withTime(dt))
         dt = datetime.datetime.strptime('04:00', '%H:%M').time()
@@ -155,7 +155,7 @@ class Test(unittest.TestCase):
         self.assertEqual('1 yr, 1 wk, 1 day, 1 hr, 02:40', Utils.elapsed_time(32230960))
 
     def testIsTimeExpired(self):
-        c = self.setup()
+        self.setup()
         tis = Utils.datetimeToEpoch(datetime.datetime.strptime("06-14-2020 11:00:00", Utils.DATEFORMAT))
         alert_time =  1200 # 20 mins
         curr_time = Utils.datetimeToEpoch(datetime.datetime.strptime("06-14-2020 11:10:00", Utils.DATEFORMAT))
@@ -188,6 +188,14 @@ class Test(unittest.TestCase):
 	    datetime.datetime.strptime("11-01-2020 00:00:00", Utils.DATEFORMAT))
         self.assertEqual(Utils.roundUp_string("01-02-2020 14:50:10"), 
 	    datetime.datetime.strptime("01-02-2020 14:50:00", Utils.DATEFORMAT))
+
+    def testDiffBetween2Dates(self):
+        dt1 = datetime.datetime.strptime("10-10-2020 17:31:57", "%m-%d-%Y %H:%M:%S")
+        dt2 = datetime.datetime.strptime("10-10-2020 17:34:58", "%m-%d-%Y %H:%M:%S")
+        total_secs = (dt2-dt1).total_seconds()
+        time_diff = "%s" % (Utils.elapsed_time(int(total_secs)))
+        self.assertEqual("03:01", time_diff) 
+
 
 #
 # sudo python controller_test.py -v"

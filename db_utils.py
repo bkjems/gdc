@@ -95,17 +95,18 @@ def elapsed_time(total_seconds):
     for unit, div in TIME_DURATION_UNITS:
         amount, total_seconds = divmod(int(total_seconds), div)
         if amount > 0:
-            if unit == MIN:
-                _min= amount
-            elif unit == SEC:
-                sec = amount
-            else:
-                parts.append('{} {}{}'.format(amount, unit, "" if amount == 1 else "s")) 
+	    if unit == MIN:
+	        _min= amount
+	    elif unit == SEC:
+	        sec = amount
+	    else:
+	        parts.append('{} {}{}'.format(amount, unit, "" if amount == 1 else "s")) 
     if _min  > 0 or sec > 0:
-        if save_total_seconds <= 60 or (_min <= 0 and sec > 0):
+	if save_total_seconds <= 60 or (_min <= 0 and sec > 0):
             parts.append('{}s'.format("60" if sec == 0 else str(sec).zfill(2)))
-        else:
+	else:
             parts.append('{}:{}'.format("00" if _min == 0 else str(_min).zfill(2), "00" if sec == 0 else str(sec).zfill(2)))
+
     return ', '.join(parts)
 
 def is_day_of_week(self, day_of_week_num):
@@ -167,7 +168,7 @@ def modby(mins):
         mins += (by - r)
 
     if mins % 60 == 0:
-        mins = 0
+	mins = 0
         hr = 1
 
     return mins, hr
@@ -196,8 +197,7 @@ def roundUpDateTime(dt):
     return dt + ft
 
 def publishMQTT(server, topic, msg, username, password):
-    if isDebugging:
-        print "calling MQTT - topic: {}, msg: {}, server: {}, username: {}".format(topic, str(msg), server, username)
+    #print "calling publishMQTT "+msg
     publish.single(topic, str(msg), hostname=server, auth={'username':username, 'password':password})
 
 def get_temperature(gpio):
@@ -212,103 +212,145 @@ def get_temperature(gpio):
 
     return ""
 
-def query_temperatures(eventName, limit):
-    sql = ('SELECT * FROM gdc_data WHERE event=\'%s\' ORDER BY _time desc LIMIT %d') % (eventName,limit)
-    rows = query_db(sql) 
+def query_temperatures():
+    conn = sqlite3.connect('/home/pi/db/gdc')
     try:
+        c = conn.cursor()
+        c.execute('SELECT * FROM gdc_data WHERE event=\'garage_temperature\' ORDER BY id DESC LIMIT 30')
+    
+        rows = c.fetchall()
+    
         data = ""
         for row in rows:
-            if row[3] == None:
-                continue
-            data += str(row[1] + " " +row[2]+ " " +row[3] + "\n")
+	    if row[3] == None:
+	        continue
+	    
+            data += str(row[1] + " " +row[3] + "\n")
+
     except:
         return ("ERROR: query_temperatures: %s", sys.exc_info()[0])
 
     return data
 
 def query_day_temperature_data():
-    sql = ('SELECT * FROM gdc_data WHERE event=\'%s\' ORDER BY _time') % ("day_temperature")
-    rows = query_db(sql) 
+    conn = sqlite3.connect('/home/pi/db/gdc')
+    c = conn.cursor()
+    c.execute('SELECT * FROM gdc_data WHERE event=\'day_temperature\' ORDER BY _time')
 
+    rows = c.fetchall()
+    data = "" 
     weather_info ={}
     weather_info["weather_temps"] = []
 
     try:
         for row in rows:
-            weather_temps = weather_info["weather_temps"]
-            if row[3] == "":
-                day = {"date":row[1], "avgtemp_f":row[4]}
-                weather_temps.append(day)
-            else:
-                d = json.loads(row[3])
-                day = {"date":d["date"], "avghumidity":d['avghumidity'], "avgtemp_f":d['avgtemp_f'], "mintemp_f":d['mintemp_f'], "maxtemp_f": d['maxtemp_f']}
-                weather_temps.append(day)
+	    weather_temps = weather_info["weather_temps"]
+	    if row[3] == "":
+	        day = {"date":row[1], "avgtemp_f":row[4]}
+	        weather_temps.append(day)
+	    else:
+	        d = json.loads(row[3])
+	        day = {"date":d["date"], "avghumidity":d['avghumidity'], "avgtemp_f":d['avgtemp_f'], "mintemp_f":d['mintemp_f'], "maxtemp_f": d['maxtemp_f']}
+	        weather_temps.append(day)
     except:
-	    return("query_day_temperature_date failed")
+	return("query_day_temperature_date failed")
 
     return json.dumps(weather_info)
 
     
 def query_day_temp_data():
-    sql = ('SELECT * FROM gdc_data WHERE event=\'%s\' ORDER BY _time') % ("day_temperature")
-    rows = query_db(sql) 
+    conn = sqlite3.connect('/home/pi/db/gdc')
+    c = conn.cursor()
+    c.execute('SELECT * FROM gdc_data WHERE event=\'day_temperature\' ORDER BY _time')
+
+    rows = c.fetchall()
 
     avg_temp = {}
     for row in rows:
         dt = row[1].split(" ")[0]
 
-        # handle different ways the day temps are stored
-        if row[3] == "":
-            avg_temp_value = row[4] 	
-        else:
-            d = json.loads(row[3])
-            avg_temp_value = d['avgtemp_f'] 	
+	# handle different ways the day temps are stored
+	if row[3] == "":
+    	    avg_temp_value = row[4] 	
+	else:
+	    d = json.loads(row[3])
+    	    avg_temp_value = d['avgtemp_f'] 	
 
-        avg_temp[dt] = avg_temp_value
+    	avg_temp[dt] = avg_temp_value
 
+    #print avg_temp
     return avg_temp
 
 	
-def query_temperature_data(eventName):
-    sql = ('SELECT * FROM gdc_data WHERE event=\'%s\' ORDER BY _time') % (eventName)
-    rows = query_db(sql) 
+def query_temperatures_data():
+    conn = sqlite3.connect('/home/pi/db/gdc')
+    c = conn.cursor()
+    c.execute('SELECT * FROM gdc_data WHERE event=\'garage_temperature\' ORDER BY _time')
+
+    rows = c.fetchall()
+
     avg_temp = query_day_temp_data() 
+
     high_low = {}
     for row in rows:
         hl_dt = row[1].split(" ")[0]
 	
         if hl_dt not in high_low.keys(): 
-            high_low[hl_dt] = [0,0]
-        try:
-            low_temp = float(high_low[hl_dt][0])	
-            high_temp = float(high_low[hl_dt][1])	
-            temperature = float(row[4])
-        except:
-            continue
+           high_low[hl_dt] = [0,0]
 
-        if temperature < low_temp or low_temp == 0:
+        low_temp = float(high_low[hl_dt][0])	
+        high_temp = float(high_low[hl_dt][1])	
+        temperature = float(row[4])
+
+	if temperature < low_temp or low_temp == 0:
             high_low[hl_dt][0] = temperature
-        if temperature > high_temp or high_temp == 0:
+	if temperature > high_temp or high_temp == 0:
             high_low[hl_dt][1] = temperature
+
     data = []
     for i in sorted(high_low.keys()):
-        dparts = i.split("-")
-        avg_temp_value = ""
+	dparts = i.split("-")
 
-        if i in avg_temp.keys():
-            avg_temp_value = avg_temp[i]
-            data.append({"y":high_low[i], "avg_temp":avg_temp_value, "yy":dparts[0], "m":int(dparts[1]), "d":dparts[2]})  
+	avg_temp_value = ""
+	if i in avg_temp.keys():
+	   avg_temp_value = avg_temp[i]
+
+ 	data.append({"y":high_low[i], "avg_temp":avg_temp_value, "yy":dparts[0], "m":int(dparts[1]), "d":dparts[2]})
+        	
     return data 
 
+#
+# Query db base on sql statement and return all rows found. If an error occurs log it and return None
+#
+def query_db(sql):
+    try:
+	if sql == None:
+	    sql = ""
+        conn = sqlite3.connect('/home/pi/db/gdc')
+        c = conn.cursor()
+        c.execute(sql)
+        return(c.fetchall())
+    except Exception as e:
+        logging.info("query_db exception: %s", e)
+	return None
+
+
+#
+# Query for the number of times the garage was opened and closed based on the 
+# database entries. Calculate how long the door was left open
+# return a string 
+#
 def query_garageOpenClose():
-    sql = ('SELECT * FROM gdc_data WHERE event=\'%s\' ORDER BY id DESC LIMIT 30') % ('2 Car')
-    rows = query_db(sql) 
+    rows = query_db('SELECT * FROM gdc_data WHERE event=\'2 Car\' ORDER BY id DESC LIMIT 30')
+    if rows == None:
+	return None
 
     data = ""
+    label = {}
     open_time = ""
     time_diff = ""
     for row in reversed(rows):
-        time_diff = ""
+	time_diff = ""
         if row[3] == "closed" and open_time != "":
             dt1 = datetime.datetime.strptime(open_time, "%Y-%m-%d %H:%M:%S")
             dt2 = datetime.datetime.strptime(row[1], "%Y-%m-%d %H:%M:%S")
@@ -320,6 +362,7 @@ def query_garageOpenClose():
             open_time = row[1] 
 
         data += str(row[1] + " " +row[3] + time_diff) + "\n"
+
     return (data)
 
 #
@@ -341,26 +384,15 @@ def weatherAPI(requests,controller):
             y = json_data["forecast"]["forecastday"][0]["day"]
             day = { "date":date_str, "avghumidity":y["avghumidity"], "avgtemp_f":y["avgtemp_f"], "mintemp_f":y["mintemp_f"], "maxtemp_f":y["maxtemp_f"] }
             weather_temps.append(day)
+	    #print "-->"+str(day)
 
             # save historic temp in sqlite3 gdc
-            try:
+	    try:
                 Utils.publishMQTT(controller.mqtt_server, controller.mqtt_topic_day_temperature, str(day), controller.mqtt_username, controller.mqtt_password)
-            except Exception as e:
+	    except Exception as e:
                 return("MQTT exception: %s", e)
     except:
         return("Weather check error: %s", sys.exc_info()[0])
+
     return weather_info
-
-def query_db(sql):
-    conn = sqlite3.connect('/home/pi/db/gdc')
-    try:
-        c = conn.cursor()
-        c.execute(sql)
-    
-        return(c.fetchall())
-    except:
-        return ("ERROR: query_temperatures: %s", sys.exc_info()[0])
-
-    return None
-
 

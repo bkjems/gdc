@@ -1,4 +1,62 @@
 var lastupdate = 0;
+var dps = []; // dataPoints
+var dps2 = []; // dataPoints
+
+function getChart() 
+{
+    var chart2 = new CanvasJS.Chart("chartContainer", {
+        animationEnabled: true,
+        zoomEnabled: true,
+        title: {
+            fontColor: "gray",
+            text: "Garage Temperatures"
+        },
+        axisY: {
+            includeZero: false,
+            valueFormatString: "#0.## F"
+        },
+        axisX: {
+            crosshair: {
+                labelBackgroundColor: "#33558B",
+                enabled: true
+            },
+            //interlacedColor: "lightgray",
+            reversed: false,
+            interval: 3,
+            intervalType: "day",
+            labelAutoFit: true,
+            valueFormatString: "MMM DD",
+            labelAngle: -45
+        },
+        toolTip: {
+            shared: true
+        },
+        data: [{
+                name: "Low/High Temperature",
+                fillOpacity: .3,
+                type: "rangeArea",
+                //color: "#E2B0AF",
+                showInLegend: true,
+                //indexLabel: "{y[#index]}",
+                indexLabelFontSize: 9,
+                yValueFormatString: "#0.## F",
+                xValueFormatString: "DD MMM YYYY",
+                legendText: "High/Low",
+                dataPoints: dps
+            },
+            {
+                name: "Avg Day Temperature",
+                lineDashType: "dash",
+                connectNullData: true,
+                type: "spline",
+                yValueFormatString: "#0.## °F",
+                showInLegend: true,
+                dataPoints: dps2
+            }
+        ]
+    });
+    return chart2;
+};
 
 function formatState(state, time)
 {   
@@ -14,12 +72,96 @@ function click(name)
     })
 };
 
+function clickGraph_shed()
+{ 
+    $.ajax(
+    {
+        url:"graphshed",
+        dataType: 'json',
+        success: function(data) {
+            dps.length = 0
+	        data.forEach((item) => {
+                dps.push({
+                    x: new Date(item.yy, item.m-1, item.d),
+                    y: item.y
+                });
+            });
+            c = getChart();
+            c.options.title.text =  "Shed Temperatures";
+            dps2.length = 0
+            data.forEach((item) => {
+                dps2.push({
+                    x: new Date(item.yy, item.m-1, item.d),
+                    y: item.avg_temp
+                });
+            });
+            c.render();
+	    },
+        error: function(data) {
+            console.log(data);
+        }
+    })
+}
+
+function clickGraph()
+{ 
+   $.ajax({
+        url:"graph",
+        dataType: 'json',
+        success: function(data) {
+	        dps.length = 0
+	        data.forEach((item) => {
+                dps.push({
+                    x: new Date(item.yy, item.m-1, item.d),
+                    y: item.y
+                });
+	        });
+
+            dps2.length = 0
+            data.forEach((item) => {
+                dps2.push({
+                    x: new Date(item.yy, item.m-1, item.d),
+                    y: item.avg_temp
+                });
+            });
+
+            chart = getChart();
+            chart.render()
+            $("#log_message").html("");
+        },
+        error: function(data) {
+            console.log(data);
+        }
+    })
+};
+
+function clickWeather()
+{
+    $.ajax({
+        url:"weather",
+	    beforeSend: function() {
+            $("#log_message").html("");
+            $("#spin").html("Loading...");
+	        $('#spin').show()
+	    },
+        complete: function (response) {
+            $('#spin').hide()
+        },
+        success: function(data) {
+            var obj = JSON.parse(data);
+            $("#log_message").html(data);
+            $("#chartContainer").html("");
+        }
+    })
+};
+
 function clickLogs()
 {
     $.ajax({
         url:"log",
         success: function(data) {
             $("#log_message").html(data);
+            $("#chartContainer").html("");
         }
     })
 };
@@ -30,6 +172,7 @@ function clickGetTemp()
         url:"gettemp",
         success: function(data) {
             $("#log_message").html(data);
+            $("#chartContainer").html("");
         }
     })
 };
@@ -40,6 +183,7 @@ function clickTemps()
         url:"temps",
         success: function(data) {
             $("#log_message").html(data);
+            $("#chartContainer").html("");
         }
     })
 };
@@ -50,6 +194,7 @@ function clickMotionTest()
         url:"mot",
         success: function(data) {
             $("#log_message").html(data);
+            $("#chartContainer").html("");
         }
     })
 };
@@ -60,22 +205,23 @@ function clickCloseAll()
         url:"closeall",
         success: function(data) {
             $("#log_message").html(data);
+            $("#chartContainer").html("");
         }
     })
 };
 
 function uptime() {
      $.ajax({
- 	url:"upt",
- 	success: function(data) {
- 	    $("#uptime").html(data)
- 	    setTimeout('uptime()', 60000)
- 	},
- 	error: function(XMLHttpRequest, textStatus, errorThrown) {
- 	    setTimeout('uptime()', 60000)
- 	},
- 	dataType: "json",
- 	timeout: 60000	
+        url:"upt",
+        success: function(data) {
+            $("#uptime").html(data)
+            setTimeout('uptime()', 60000)
+        },
+        error: function(XMLHttpRequest, textStatus, errorThrown) {
+            setTimeout('uptime()', 60000)
+        },
+        dataType: "json",
+        timeout: 60000	
      });
 }
 
@@ -112,10 +258,10 @@ function init() {
     poll()
 }
 
-
 $.ajax({
     url:"cfg",
     success: function(data) {
+
 	for (var i = 0; i < data.length; i++) {
 	    var id = data[i][0];
 	    var name = data[i][1];

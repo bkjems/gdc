@@ -4,7 +4,7 @@ import time as time
 
 class Door(object):
     def __init__(self, doorId, config):
-	self.gpio = None
+        self.gpio = None
         self.id = doorId
         self.name = config['id']
         self.relay_pin = config['relay_pin']
@@ -27,7 +27,7 @@ class Door(object):
         }
 
     def setup(self, gpio, tslo_value):
-    	self.setup_gpio(gpio) 
+        self.setup_gpio(gpio) 
         self.state = self.get_state_pin()
 
         if self.state == Utils.OPEN:
@@ -47,8 +47,7 @@ class Door(object):
     def setup_gpio(self, gpio):
         if Utils.isDebugging:
             return
-
-	self.gpio = gpio
+        self.gpio = gpio
         self.gpio.setup(self.relay_pin, gpio.OUT)
         self.gpio.setup(self.state_pin, gpio.IN, pull_up_down=gpio.PUD_UP)
         self.gpio.output(self.relay_pin, True)
