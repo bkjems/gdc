@@ -9,6 +9,7 @@ import sqlite3
 from enum import Enum
 from datetime import timedelta
 from time import gmtime
+import requests
 
 
 def query_temperatures(eventName, limit):
@@ -32,18 +33,15 @@ def query_day_temperature_data():
 
     weather_info = {}
     weather_info["weather_temps"] = []
-
     try:
         for row in rows:
-            weather_temps = weather_info["weather_temps"]
             if row[3] == "":
                 day = {"date": row[1], "avgtemp_f": row[4]}
-                weather_temps.append(day)
             else:
-                d = json.loads(row[3])
-                day = {"date": d["date"], "avghumidity": d['avghumidity'], "avgtemp_f": d['avgtemp_f'],
-                       "mintemp_f": d['mintemp_f'], "maxtemp_f": d['maxtemp_f']}
-                weather_temps.append(day)
+                day = json.loads(row[3])
+
+            weather_temps = weather_info["weather_temps"]
+            weather_temps.append(day)
     except:
         return("query_day_temperature_date failed")
 
@@ -56,24 +54,27 @@ def query_day_temp_data():
 
     avg_temp = {}
     for row in rows:
-        dt = row[1].split(" ")[0]
+        date_value = row[1].split(" ")[0]
 
         # handle different ways the day temps are stored
         if row[3] == "":
             avg_temp_value = row[4]
         else:
-            d = json.loads(row[3])
-            avg_temp_value = d['avgtemp_f']
+            json_data = json.loads(row[3])
+            avg_temp_value = json_data['avgtemp_f']
 
-        avg_temp[dt] = avg_temp_value
+        avg_temp[date_value] = avg_temp_value
 
     return avg_temp
 
 
-def query_temperature_data(eventName):
+def query_temperature_data(eventName, controller):
     sql = ('SELECT * FROM gdc_data WHERE event=\'%s\' ORDER BY _time') % (eventName)
     rows = query_db(sql)
+
+    curr_date = Utils.get_date_time().strftime('%Y-%m-%d')
     avg_temp = query_day_temp_data()
+
     high_low = {}
     for row in rows:
         hl_dt = row[1].split(" ")[0]
@@ -91,15 +92,18 @@ def query_temperature_data(eventName):
             high_low[hl_dt][0] = temperature
         if temperature > high_temp or high_temp == 0:
             high_low[hl_dt][1] = temperature
+
+    Utils.query_weather_API_by_date(requests, controller, curr_date)
+
     data = []
-    for i in sorted(high_low.keys()):
-        dparts = i.split("-")
+    for temp in sorted(high_low.keys()):
+        data_parts = temp.split("-")
         avg_temp_value = ""
 
-        if i in avg_temp.keys():
-            avg_temp_value = avg_temp[i]
-            data.append({"y": high_low[i], "avg_temp": avg_temp_value, "yy": dparts[0], "m": int(
-                dparts[1]), "d": dparts[2]})
+        if temp in avg_temp.keys():
+            avg_temp_value = avg_temp[temp]
+            data.append({"y": high_low[temp], "avg_temp": avg_temp_value, "yy": data_parts[0], "m": int(
+                data_parts[1]), "d": data_parts[2]})             
     return data
 
 
@@ -110,6 +114,7 @@ def query_garage_open_close():
     data = ""
     open_time = ""
     time_diff = ""
+    
     for row in reversed(rows):
         time_diff = ""
         if row[3] == "closed" and open_time != "":
@@ -122,7 +127,7 @@ def query_garage_open_close():
         if row[3] == "opening":
             open_time = row[1]
 
-        data += str(row[1] + " " + row[3] + time_diff) + "\n"
+        data += "%s %s%s\n" % (str(row[1]), str(row[3]), time_diff)
     return (data)
 
 

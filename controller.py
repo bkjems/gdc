@@ -123,7 +123,7 @@ class ClickGraphShedHandler(Resource):
         self.controller = controller
 
     def render(self, request):
-        data = db_Utils.query_temperature_data("shed_temperature") 
+        data = db_Utils.query_temperature_data("shed_temperature", controller) 
         request.setHeader('Content-Type', 'application/json')
         return json.dumps(data)
 
@@ -135,7 +135,7 @@ class ClickGraphHandler(Resource):
         self.controller = controller
 
     def render(self, request):
-        data = db_Utils.query_temperature_data("garage_temperature") 
+        data = db_Utils.query_temperature_data("garage_temperature", controller) 
         request.setHeader('Content-Type', 'application/json')
         return json.dumps(data)
 
@@ -376,7 +376,7 @@ class Controller(object):
                     if Utils.isDebugging:
                         cur_dt = Utils.epoch_to_datetime(curr_time).strftime(Utils.TIMEFORMAT)
                         logging.info("Motion detected, reset %s (%s)" % (d.name, cur_dt))
-                        d.set_open_state(curr_time)
+                    d.set_open_state(curr_time)
 
     def set_initial_text_msg(self, door):
         if len(self.initMsg) == 0:
@@ -487,7 +487,7 @@ class Controller(object):
 
     def publish_temperature_event(self, msg):
         if Utils.isDebugging:
-            logging.info("publish_temperature - %s" % (msg))
+            logging.info("mqtt %s - %s" % (self.mqtt_topic_temperature, msg))
             return
 
         if msg != "":
@@ -612,6 +612,7 @@ class Controller(object):
             return default
         return config[param]
 
+    
     def get_temp(self):
         msg = Utils.get_temperature(Utils.temperature_pin)
         if "error reading" in msg:

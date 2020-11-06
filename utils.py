@@ -219,8 +219,7 @@ def publish_MQTT(server, topic, msg, username, password):
     if isDebugging:
         print "calling MQTT - topic: {}, msg: {}, server: {}, username: {}".format(
             topic, str(msg), server, username)
-    publish.single(topic, str(msg), hostname=server, auth={
-                   'username': username, 'password': password})
+    publish.single(topic, str(msg), hostname=server, auth={'username': username, 'password': password})
 
 
 def get_temperature(gpio):
@@ -235,6 +234,28 @@ def get_temperature(gpio):
 
     return ""
 
+def query_weather_API_by_date(requests, controller, date_value):
+    if date_value == None or date_value == "":
+        return "invalid date"
+
+    try:
+        url = 'http://api.weatherapi.com/v1/history.json?key=d7fff8a3981e42e2b9c132711201810&q=Riverton&dt=' + date_value
+        data = requests.get(url)
+        json_data = data.json()
+        y = json_data["forecast"]["forecastday"][0]["day"]
+        day = {"date": date_value, "avghumidity": y["avghumidity"], "avgtemp_f": y["avgtemp_f"],
+                "mintemp_f": y["mintemp_f"], "maxtemp_f": y["maxtemp_f"]}
+
+        # save historic temp in sqlite3 gdc
+        try:
+            Utils.publish_MQTT(controller.mqtt_server, controller.mqtt_topic_day_temperature, str(day), controller.mqtt_username, controller.mqtt_password)
+        except Exception as e:
+            return("MQTT exception: %s", e)
+
+        return day
+    except:
+        return("Error query_weather_API_by_date: %s", sys.exc_info()[0])
+
 #
 # query the weather api for historic day temperatures.  Can only go back 7 days
 #
@@ -243,25 +264,12 @@ def query_weather_API(requests, controller):
     weather_info["weather_temps"] = []
     try:
         for i in range(7):
-            weather_temps = weather_info["weather_temps"]
-
             date = Utils.get_date_time() - timedelta(days=i)
             date_str = date.strftime('%Y-%m-%d')
+            day = query_weather_API_by_date(requests, controller, date_str)
 
-            url = 'http://api.weatherapi.com/v1/history.json?key=d7fff8a3981e42e2b9c132711201810&q=Riverton&dt=' + date_str
-            data = requests.get(url)
-            json_data = data.json()
-            y = json_data["forecast"]["forecastday"][0]["day"]
-            day = {"date": date_str, "avghumidity": y["avghumidity"], "avgtemp_f": y["avgtemp_f"],
-                   "mintemp_f": y["mintemp_f"], "maxtemp_f": y["maxtemp_f"]}
+            weather_temps = weather_info["weather_temps"]
             weather_temps.append(day)
-
-            # save historic temp in sqlite3 gdc
-            try:
-                Utils.publish_MQTT(controller.mqtt_server, controller.mqtt_topic_day_temperature, str(
-                    day), controller.mqtt_username, controller.mqtt_password)
-            except Exception as e:
-                return("MQTT exception: %s", e)
     except:
-        return("Weather check error: %s", sys.exc_info()[0])
+        return("Error query_weather_API: %s", sys.exc_info()[0])
     return weather_info
