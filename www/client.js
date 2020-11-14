@@ -66,9 +66,10 @@ function formatState(state, time)
 
 function click(name) 
 {
-    $.ajax({
-	url:"clk",
-	data:{'id':name}
+    $.ajax(
+    {
+        url:"clk",
+        data:{'id':name}
     })
 };
 
@@ -148,8 +149,7 @@ function clickWeather()
             $('#spin').hide()
         },
         success: function(data) {
-            var obj = JSON.parse(data);
-            $("#log_message").html(data);
+            $("#json").text(data);
             $("#chartContainer").html("");
         }
     })
@@ -173,6 +173,7 @@ function clickGetTemp()
         success: function(data) {
             $("#log_message").html(data);
             $("#chartContainer").html("");
+            $("#json").text("");
         }
     })
 };
@@ -184,6 +185,7 @@ function clickTemps()
         success: function(data) {
             $("#log_message").html(data);
             $("#chartContainer").html("");
+            $("#json").text("");
         }
     })
 };
@@ -206,6 +208,8 @@ function clickCloseAll()
         success: function(data) {
             $("#log_message").html(data);
             $("#chartContainer").html("");
+            $("#json").text("");
+
         }
     })
 };
@@ -261,21 +265,20 @@ function init() {
 $.ajax({
     url:"cfg",
     success: function(data) {
-
-	for (var i = 0; i < data.length; i++) {
-	    var id = data[i][0];
-	    var name = data[i][1];
-	    var state = data[i][2];
-	    var time = data[i][3];
-	    var li = '<li id="' + id + '" data-icon="false">';
-	    li = li + '<a href="javascript:click(\'' + id + '\');">';
-	    li = li + '<img src="img/'+state + '.png" />';
-	    li = li + '<h3>' + name + '</h3>';
-	    li = li + '<p>' + formatState(state, time) + '</p>';
-	    li = li + '</a></li>';
-	    $("#doorlist").append(li);
-	    $("#doorlist").listview('refresh');
-	}
+        for (var i = 0; i < data.length; i++) {
+            var id = data[i][0];
+            var name = data[i][1];
+            var state = data[i][2];
+            var time = data[i][3];
+            var li = '<li id="' + id + '" data-icon="false">';
+            li = li + '<a href="javascript:click(\'' + id + '\');">';
+            li = li + '<img src="img/'+state + '.png" />';
+            li = li + '<h3>' + name + '</h3>';
+            li = li + '<p>' + formatState(state, time) + '</p>';
+            li = li + '</a></li>';
+            $("#doorlist").append(li);
+            $("#doorlist").listview('refresh');
+        }
     }
 });
 

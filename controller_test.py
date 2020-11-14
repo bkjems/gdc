@@ -14,77 +14,77 @@ class Test(unittest.TestCase):
         config_file = open('config.json')
         c = ControllerClass.Controller(json.load(config_file), True) 
         config_file.close()
-	c.from_time = ""
+        c.from_time = ""
         c.to_time = ""
         c.on_days_of_week = ""
- 	c.time_to_open = 0	
-	return c
+        c.time_to_open = 0	
+        return c
 
     def testDoorNameIsNamedRight(self):
-	c = self.setup() 
-	door = c.get_door("right")
+        c = self.setup() 
+        door = c.get_door("right")
         assert door is not None
         self.assertTrue(door.id == "right")
 
     def testDoorOpenAtStartup(self):
-	c = self.setup() 
-	door = c.get_door("right")
-	door.test_state_pin = Utils.OPEN
-	door.state = Utils.OPEN
-	door.toggle_relay()
+        c = self.setup() 
+        door = c.get_door("right")
+        door.test_state_pin = Utils.OPEN
+        door.state = Utils.OPEN
+        door.toggle_relay()
         #self.assertEquals(door.test_state_pin, "open")
 
     def testDoorOpenLongerThanTTW(self):
-	c = self.setup() 
-	door = c.get_door("right")
-	c.time_to_report_open= 1
-	c.time_to_close = 0
-	door.toggle_relay()
-	c.check_status() 
-	time.sleep(4)
-	c.check_status() 
+        c = self.setup() 
+        door = c.get_door("right")
+        c.time_to_report_open= 1
+        c.time_to_close = 0
+        door.toggle_relay()
+        c.check_status() 
+        time.sleep(4)
+        c.check_status() 
         self.assertFalse(door.send_open_im)
 
     def testOpenNoApproxTimeInOpen(self):
-	c = self.setup() 
-	door = c.get_door("right")
-	c.time_to_open = 0
-	door.toggle_relay()
-	time.sleep(2)
-	c.check_status()
+        c = self.setup() 
+        door = c.get_door("right")
+        c.time_to_open = 0
+        door.toggle_relay()
+        time.sleep(2)
+        c.check_status()
         self.assertEquals(door.test_state_pin, "open")
 
     def testOpenCloseNoApproxTimeInClose(self):
-	c = self.setup() 
-	door = c.get_door("right")
-	c.time_to_close= 0
-	c.time_to_open = 0
+        c = self.setup() 
+        door = c.get_door("right")
+        c.time_to_close= 0
+        c.time_to_open = 0
 
-	door.toggle_relay()
-	c.check_status()
+        door.toggle_relay()
+        c.check_status()
         self.assertEquals(door.test_state_pin, "open")
 
-	door.toggle_relay()
-	c.check_status()
+        door.toggle_relay()
+        c.check_status()
         self.assertEquals(door.test_state_pin, "closed")
 
     def testOpeningWithApproxTimeToOpen(self):
-	c = self.setup() 
-	d = c.get_door("right")
-	d.state = "closed" 
-	c.time_to_open=5
-	d.toggle_relay()
-	c.check_door_status(d)
+        c = self.setup() 
+        d = c.get_door("right")
+        d.state = "closed" 
+        c.time_to_open=5
+        d.toggle_relay()
+        c.check_door_status(d)
         self.assertEquals(d.state, "opening")
  
     def testClosingWithApproxTimeToClose(self):
-	c = self.setup() 
-	door = c.get_door("right")
-	door.state = "open"
-	door.test_state_pin= "open"
-	door.time_to_close= 5
-	door.toggle_relay()
-	c.check_door_status(door)
+        c = self.setup() 
+        door = c.get_door("right")
+        door.state = "open"
+        door.test_state_pin= "open"
+        door.time_to_close= 5
+        door.toggle_relay()
+        c.check_door_status(door)
         self.assertEquals(door.state, "closing")
 
     def testIsDayOfWeekInvalid(self):
@@ -196,6 +196,9 @@ class Test(unittest.TestCase):
         time_diff = "%s" % (Utils.get_elapsed_time(int(total_secs)))
         self.assertEqual("03:01", time_diff) 
 
+    def testSet_initial_text_msg(self): 
+        c = self.setup()
+        self.assertEqual('Initial state of 2 Car:closed', c.initMsg)
 
 #
 # sudo python controller_test.py -v"

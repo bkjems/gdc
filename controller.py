@@ -49,9 +49,10 @@ class GetTempHandler(Resource):
         self.controller = controller
 
     def render(self, request):
-        datetime = Utils.get_date_time()
         temp = Utils.get_temperature(Utils.temperature_pin)
-        return "<html><body><pre>%s Current %s</pre></body></html>" % (datetime.strftime(Utils.DATEFORMAT),temp)
+        json_object = json.loads(temp)
+        json_formatted_str = json.dumps(json_object, indent=2)
+        return "<html><body>Garage<pre>%s</pre></body></html>" % (json_formatted_str)
 
 class TempsHandler(Resource):
     isLeaf = True
@@ -61,9 +62,9 @@ class TempsHandler(Resource):
         self.controller = controller
 
     def render(self, request):
-        data = db_Utils.query_temperatures("garage_temperature", 50)
-        d = data.replace("<", "&lt")
-        return "<html><body><pre>%s</pre></body></html>" % (d)
+        events = ["garage_temperature", "shed_temperature"]
+        data = db_Utils.query_temperatures(events, 75)
+        return "<html><body><pre>%s</pre></body></html>" % (str(data))
 
 class LogHandler(Resource):
     isLeaf = True
@@ -112,9 +113,11 @@ class ClickWeatherHandler(Resource):
         self.controller = controller
 
     def render(self, request):
-        Utils.query_weather_API(requests,controller)
+        Utils.query_weather_API(requests, controller)
         weather_info = db_Utils.query_day_temperature_data() 
-        return json.dumps(weather_info)
+        json_object = json.loads(weather_info)
+        json_formatted_str = json.dumps(json_object, indent=2)
+        return json_formatted_str
 
 class ClickGraphShedHandler(Resource):
     isLeaf = True
@@ -123,7 +126,8 @@ class ClickGraphShedHandler(Resource):
         self.controller = controller
 
     def render(self, request):
-        data = db_Utils.query_temperature_data("shed_temperature", controller) 
+        events = ["shed_temperature"]
+        data = db_Utils.query_temperature_data(events, controller) 
         request.setHeader('Content-Type', 'application/json')
         return json.dumps(data)
 
@@ -135,7 +139,8 @@ class ClickGraphHandler(Resource):
         self.controller = controller
 
     def render(self, request):
-        data = db_Utils.query_temperature_data("garage_temperature", controller) 
+        events = ["garage_temperature"]
+        data = db_Utils.query_temperature_data(events, controller) 
         request.setHeader('Content-Type', 'application/json')
         return json.dumps(data)
 
@@ -170,7 +175,7 @@ class UptimeHandler(Resource):
 
     def uptime(self):
         try:
-            with  open( "/proc/uptime" ) as f:
+            with open( "/proc/uptime" ) as f:
                 contents = f.read().split()
         except:
             return "Cannot open uptime file: /proc/uptime"
@@ -280,6 +285,10 @@ class Controller(object):
         self.mqtt_topic_garage = c['garage']
         self.mqtt_topic_temperature= c['temperature']
         self.mqtt_topic_day_temperature= c['day_temperature']
+
+        c = self.config['weatherapi']
+        self.weather_url = c['url']
+        self.weather_key = c['key']
 
         for arg in sys.argv:
             if str(arg) == 'debug':
@@ -444,15 +453,15 @@ class Controller(object):
         if Utils.is_time_expired(door.tis.get(door.state), self.time_to_open, curr_time):
             #self.logger.info("%s %s->%s" % (door.name, door.state, OPEN))
             door.state = Utils.OPEN
-            door.setOpenState(curr_time) 
+            door.set_open_state(curr_time) 
         return message
 
     def check_status(self):
         try:
             for door in self.doors:
                 self.check_door_status(door)
-        except:
-            self.logger.error("check_status: %s", sys.exc_info()[0])
+        except Exception as e:
+            self.logger.info("Error check_status %s" % e)
 
     def check_door_status(self, door):
         self.logger = logging.getLogger(__name__)
@@ -464,8 +473,8 @@ class Controller(object):
             if door.state != Utils.OPENING and door.state != Utils.CLOSING: 
                 door.state = Utils.OPENING if door.state == Utils.CLOSED else Utils.CLOSING
                 door.tis[door.state] = curr_time
-            if Utils.isDebugging:
-                self.logger.info("%s %s(%s)" % (door.name, door.state, pin_state))
+                if Utils.isDebugging:
+                    self.logger.info("%s %s(%s)" % (door.name, door.state, pin_state))
 
         if door.state == Utils.OPENING:
             message = self.door_OPENING(door)
@@ -476,7 +485,8 @@ class Controller(object):
         elif door.state == Utils.OPEN:
             if door.send_open_im_debug == True and Utils.isDebugging: 
                 self.logger.info("%s %s(%s)" % (door.name, door.state, pin_state))
-            door.send_open_im_debug = False
+                door.send_open_im_debug = False
+            
             message = self.door_OPEN(door)
 
         if message != "":
@@ -485,18 +495,9 @@ class Controller(object):
 
         self.updateHandler.handle_updates()
 
-    def publish_temperature_event(self, msg):
-        if Utils.isDebugging:
-            logging.info("mqtt %s - %s" % (self.mqtt_topic_temperature, msg))
-            return
-
-        if msg != "":
-            Utils.publish_MQTT(self.mqtt_server, self.mqtt_topic_temperature, msg, self.mqtt_username,self.mqtt_password)
 
     def publish_garage_event(self, door, msg):
         pubMsg = ""
-        if Utils.isDebugging:
-            pubMsg = "debug_"
 
         if msg == Utils.OPENING and door.send_open_mqtt == True:
             door.send_open_mqtt = False
@@ -612,13 +613,13 @@ class Controller(object):
             return default
         return config[param]
 
-    
     def get_temp(self):
         msg = Utils.get_temperature(Utils.temperature_pin)
         if "error reading" in msg:
             logging.info("Error getting temperature")
         if msg != "": 
-            self.publish_temperature_event(msg) 
+            Utils.publish_MQTT(self.mqtt_server, self.mqtt_topic_temperature, msg, self.mqtt_username, self.mqtt_password)
+        return msg
 
     def get_weather(self):
         logging.info("calling weatherAPI")
@@ -640,7 +641,7 @@ class Controller(object):
         root.putChild('weather', ClickWeatherHandler(self))
         task.LoopingCall(self.check_status).start(1.0)
         task.LoopingCall(self.get_temp).start(1.0*60*60) # every hour
-        task.LoopingCall(self.get_weather).start(1.0*60*60*24) # every day
+        task.LoopingCall(self.get_weather).start(1.0*60*60*12) # every 12 hours
 
         site = server.Site(root)
 

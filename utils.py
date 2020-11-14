@@ -209,16 +209,15 @@ def round_up_datetime(dt):
         return None
 
     nm, hr = modby(dt.minute)
-    ft = timedelta(hours=+hr, minutes=+(nm-dt.minute-1),
-                   seconds=+(60-dt.second))
+    ft = timedelta(hours=+hr, minutes=+(nm-dt.minute-1), seconds=+(60-dt.second))
 
     return dt + ft
 
 
 def publish_MQTT(server, topic, msg, username, password):
     if isDebugging:
-        print "calling MQTT - topic: {}, msg: {}, server: {}, username: {}".format(
-            topic, str(msg), server, username)
+        print "calling MQTT - topic: {}, msg: {}, server: {}, username: {}".format(topic, str(msg), server, username)
+        return
     publish.single(topic, str(msg), hostname=server, auth={'username': username, 'password': password})
 
 
@@ -228,29 +227,32 @@ def get_temperature(gpio):
         if t is not None:
             t = t * (9/5.0) + 32  # convert to fahrenheit
         if h is not None and t is not None:
-            return "Temp={0:0.1f}F Humidity={1:0.1f}%".format(t, h)
+            date_str = Utils.get_date_time().strftime(DATEFORMAT)
+            return "{{ \"date\":\"{0}\", \"temperature_f\":{1:0.1f}, \"humidity\":{2:0.1f} }}".format(date_str,t,h)
     except:
-        return "error reading temperature :"
-
+        return("Error get_temperature")
+   
     return ""
 
 def query_weather_API_by_date(requests, controller, date_value):
     if date_value == None or date_value == "":
         return "invalid date"
-
     try:
-        url = 'http://api.weatherapi.com/v1/history.json?key=d7fff8a3981e42e2b9c132711201810&q=Riverton&dt=' + date_value
+        url = '{}?key={}&q={}&dt={}'.format(controller.weather_url, controller.weather_key,"Riverton", date_value)
+        #print url
         data = requests.get(url)
         json_data = data.json()
+
+        # get todays weather section
         y = json_data["forecast"]["forecastday"][0]["day"]
         day = {"date": date_value, "avghumidity": y["avghumidity"], "avgtemp_f": y["avgtemp_f"],
                 "mintemp_f": y["mintemp_f"], "maxtemp_f": y["maxtemp_f"]}
 
-        # save historic temp in sqlite3 gdc
+        # save historic temperatures in sqlite3 
         try:
             Utils.publish_MQTT(controller.mqtt_server, controller.mqtt_topic_day_temperature, str(day), controller.mqtt_username, controller.mqtt_password)
         except Exception as e:
-            return("MQTT exception: %s", e)
+            return("Error publish_MQTT: %s", e)
 
         return day
     except:

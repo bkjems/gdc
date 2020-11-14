@@ -11,16 +11,32 @@ from datetime import timedelta
 from time import gmtime
 import requests
 
+def build_sql(eventNames, limit, orderby, desc_asc):
+    sql = ("SELECT * FROM gdc_data WHERE event=")
+    cnt = 0
+    for event in eventNames:
+        if cnt != 0:
+            sql += " or event="
+        cnt+=1
+        sql += "\'" + event + "\'"
 
-def query_temperatures(eventName, limit):
-    sql = ('SELECT * FROM gdc_data WHERE event=\'%s\' ORDER BY _time desc LIMIT %d') % (eventName, limit)
+    sql += " ORDER BY "+ orderby +" "
+
+    if desc_asc != "":
+        sql += desc_asc
+ 
+    if limit > 0 :
+        sql += " LIMIT %d" % (limit)
+
+    return sql
+
+def query_temperatures(eventNames, limit):
+    sql = build_sql(eventNames, limit, "_time", "desc")
     rows = query_db(sql)
     try:
         data = ""
         for row in rows:
-            if row[3] == None:
-                continue
-            data += str(row[1] + " " + row[2] + " " + row[3] + "\n")
+            data += '{} {:>20}: {:>5.1f}\n'.format(row[1], row[2], float(row[4]))
     except:
         return ("ERROR: query_temperatures: %s", sys.exc_info()[0])
 
@@ -28,7 +44,7 @@ def query_temperatures(eventName, limit):
 
 
 def query_day_temperature_data():
-    sql = ('SELECT * FROM gdc_data WHERE event=\'%s\' ORDER BY _time') % ("day_temperature")
+    sql = build_sql(["day_temperature"], 20, "_time", "desc")
     rows = query_db(sql)
 
     weather_info = {}
@@ -49,7 +65,7 @@ def query_day_temperature_data():
 
 
 def query_day_temp_data():
-    sql = ('SELECT * FROM gdc_data WHERE event=\'%s\' ORDER BY _time') % ("day_temperature")
+    sql = build_sql(["day_temperature"], 0, "_time", "")
     rows = query_db(sql)
 
     avg_temp = {}
@@ -69,7 +85,7 @@ def query_day_temp_data():
 
 
 def query_temperature_data(eventName, controller):
-    sql = ('SELECT * FROM gdc_data WHERE event=\'%s\' ORDER BY _time') % (eventName)
+    sql = build_sql(eventName,0,"_time", "")
     rows = query_db(sql)
 
     curr_date = Utils.get_date_time().strftime('%Y-%m-%d')
@@ -77,38 +93,39 @@ def query_temperature_data(eventName, controller):
 
     high_low = {}
     for row in rows:
-        hl_dt = row[1].split(" ")[0]
+        hl_date = row[1].split(" ")[0]
 
-        if hl_dt not in high_low.keys():
-            high_low[hl_dt] = [0, 0]
+        if hl_date not in high_low.keys():
+            high_low[hl_date] = [0, 0]
         try:
-            low_temp = float(high_low[hl_dt][0])
-            high_temp = float(high_low[hl_dt][1])
+            low_temp = float(high_low[hl_date][0])
+            high_temp = float(high_low[hl_date][1])
             temperature = float(row[4])
+
+            if temperature < low_temp or low_temp == 0:
+                high_low[hl_date][0] = temperature
+            if temperature > high_temp or high_temp == 0:
+                high_low[hl_date][1] = temperature
         except:
-            continue
+            continue    
 
-        if temperature < low_temp or low_temp == 0:
-            high_low[hl_dt][0] = temperature
-        if temperature > high_temp or high_temp == 0:
-            high_low[hl_dt][1] = temperature
-
+    # add todays avg temperature to db
     Utils.query_weather_API_by_date(requests, controller, curr_date)
 
     data = []
     for temp in sorted(high_low.keys()):
-        data_parts = temp.split("-")
+        date_parts = temp.split("-")
         avg_temp_value = ""
 
         if temp in avg_temp.keys():
             avg_temp_value = avg_temp[temp]
-            data.append({"y": high_low[temp], "avg_temp": avg_temp_value, "yy": data_parts[0], "m": int(
-                data_parts[1]), "d": data_parts[2]})             
+            data.append({"y": high_low[temp], "avg_temp": avg_temp_value, "yy": date_parts[0], "m": int(
+                date_parts[1]), "d": date_parts[2]})             
     return data
 
 
 def query_garage_open_close():
-    sql = ('SELECT * FROM gdc_data WHERE event=\'%s\' ORDER BY id DESC LIMIT 30') % ('2 Car')
+    sql = build_sql(["2 Car"], 30, "id", "desc")
     rows = query_db(sql)
 
     data = ""
@@ -136,9 +153,8 @@ def query_db(sql):
     try:
         c = conn.cursor()
         c.execute(sql)
-
         return(c.fetchall())
     except:
-        return ("ERROR: query_temperatures: %s", sys.exc_info()[0])
+        return ("ERROR: query_db: sql:%s -- %s", sql,sys.exc_info()[0])
 
     return None
