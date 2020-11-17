@@ -52,7 +52,24 @@ class GetTempHandler(Resource):
         temp = Utils.get_temperature(Utils.temperature_pin)
         json_object = json.loads(temp)
         json_formatted_str = json.dumps(json_object, indent=2)
-        return "<html><body>Garage<pre>%s</pre></body></html>" % (json_formatted_str)
+
+        current_temp_json = Utils.get_current_temperature(requests, controller)
+        localtime = str(current_temp_json["location"]["localtime"])
+        feels_like = str(current_temp_json["current"]["feelslike_f"])
+        condition = str(current_temp_json["current"]["condition"]["text"])
+        icon = str(current_temp_json["current"]["condition"]["icon"])
+        wind_mph = str(current_temp_json["current"]["wind_mph"])
+        wind_dir = str(current_temp_json["current"]["wind_dir"])
+        humidity = str(current_temp_json["current"]["humidity"])
+        uv = str(current_temp_json["current"]["uv"])
+        vis_miles = str(current_temp_json["current"]["vis_miles"])
+        temp_f = str(current_temp_json["current"]["temp_f"])
+        locationName = str(current_temp_json["location"]["name"])
+        locationState = str(current_temp_json["location"]["region"])
+        current_temp_json_formatted = json.dumps(current_temp_json, indent=2)
+        im = '<img id=\"conditionsImage\" src=\"http:'+icon+'\"/>'
+        curr_weather = '<table><tr><td>{}</td></tr><tr><td><b>{}</b></td></tr><tr><td><h2>{}F </h2></td></tr><tr><td><i>Feels like {}F </i>{}</td><td>{}</td></tr><tr><td>{}mph {}</td><td>Humidity: {}%</td></tr><tr><td>UV: {}</td><td>Visibility: {}miles</td></tr></table>'.format(localtime, locationName+", "+locationState, temp_f, feels_like, condition,im, wind_mph, wind_dir, humidity, uv, vis_miles)
+        return "<html><body>Garage<pre>%s</pre>%s<pre>%s</pre></body></html>" % (json_formatted_str, curr_weather,current_temp_json_formatted)
 
 class TempsHandler(Resource):
     isLeaf = True

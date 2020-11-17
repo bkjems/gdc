@@ -13,14 +13,19 @@ function getChart()
         },
         axisY: {
             includeZero: false,
-            valueFormatString: "#0.## F"
+            valueFormatString: "#0.## F",
+            stripLines: [{
+                labelFontSize:10,
+                labelAlign:"near",
+                value: 32,
+                label: "Freezing"
+            }]
         },
         axisX: {
             crosshair: {
                 labelBackgroundColor: "#33558B",
                 enabled: true
             },
-            //interlacedColor: "lightgray",
             reversed: false,
             interval: 3,
             intervalType: "day",
@@ -35,9 +40,7 @@ function getChart()
                 name: "Low/High Temperature",
                 fillOpacity: .3,
                 type: "rangeArea",
-                //color: "#E2B0AF",
                 showInLegend: true,
-                //indexLabel: "{y[#index]}",
                 indexLabelFontSize: 9,
                 yValueFormatString: "#0.## F",
                 xValueFormatString: "DD MMM YYYY",
@@ -80,15 +83,17 @@ function clickGraph_shed()
         url:"graphshed",
         dataType: 'json',
         success: function(data) {
+            c = getChart();
+            c.options.title.text =  "Shed Temperatures";
+
             dps.length = 0
-	        data.forEach((item) => {
+            data.forEach((item) => {
                 dps.push({
                     x: new Date(item.yy, item.m-1, item.d),
                     y: item.y
                 });
             });
-            c = getChart();
-            c.options.title.text =  "Shed Temperatures";
+            
             dps2.length = 0
             data.forEach((item) => {
                 dps2.push({
@@ -110,8 +115,8 @@ function clickGraph()
         url:"graph",
         dataType: 'json',
         success: function(data) {
-	        dps.length = 0
-	        data.forEach((item) => {
+            dps.length = 0
+            data.forEach((item) => {
                 dps.push({
                     x: new Date(item.yy, item.m-1, item.d),
                     y: item.y
@@ -170,6 +175,14 @@ function clickGetTemp()
 {
     $.ajax({
         url:"gettemp",
+        beforeSend: function() {
+            $("#log_message").html("");
+            $("#spin").html("Loading...");
+	        $('#spin').show()
+        },
+        complete: function (response) {
+            $('#spin').hide()
+        },
         success: function(data) {
             $("#log_message").html(data);
             $("#chartContainer").html("");
