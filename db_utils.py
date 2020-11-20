@@ -11,24 +11,38 @@ from datetime import timedelta
 from time import gmtime
 import requests
 
+
 def build_sql(eventNames, limit, orderby, desc_asc):
     sql = ("SELECT * FROM gdc_data WHERE event=")
     cnt = 0
     for event in eventNames:
         if cnt != 0:
             sql += " or event="
-        cnt+=1
+        cnt += 1
         sql += "\'" + event + "\'"
 
-    sql += " ORDER BY "+ orderby +" "
+    sql += " ORDER BY " + orderby + " "
 
     if desc_asc != "":
         sql += desc_asc
- 
-    if limit > 0 :
+
+    if limit > 0:
         sql += " LIMIT %d" % (limit)
 
     return sql
+
+
+def query_db(sql):
+    conn = sqlite3.connect('/home/pi/db/gdc')
+    try:
+        c = conn.cursor()
+        c.execute(sql)
+        return(c.fetchall())
+    except:
+        return ("ERROR: query_db: sql:%s -- %s", sql, sys.exc_info()[0])
+
+    return None
+
 
 def query_temperatures(eventNames, limit):
     sql = build_sql(eventNames, limit, "_time", "desc")
@@ -36,7 +50,8 @@ def query_temperatures(eventNames, limit):
     try:
         data = ""
         for row in rows:
-            data += '{} {:>20}: {:>5.1f}\n'.format(row[1], row[2], float(row[4]))
+            data += '{} {:>20}: {:>5.1f}\n'.format(
+                row[1], row[2], float(row[4]))
     except:
         return ("ERROR: query_temperatures: %s", sys.exc_info()[0])
 
@@ -85,7 +100,7 @@ def query_day_temp_data():
 
 
 def query_temperature_data(eventName, controller):
-    sql = build_sql(eventName,0,"_time", "")
+    sql = build_sql(eventName, 0, "_time", "")
     rows = query_db(sql)
 
     curr_date = Utils.get_date_time().strftime('%Y-%m-%d')
@@ -107,7 +122,7 @@ def query_temperature_data(eventName, controller):
             if temperature > high_temp or high_temp == 0:
                 high_low[hl_date][1] = temperature
         except:
-            continue    
+            continue
 
     # add todays avg temperature to db
     Utils.query_weather_API_by_date(requests, controller, curr_date)
@@ -120,7 +135,7 @@ def query_temperature_data(eventName, controller):
         if temp in avg_temp.keys():
             avg_temp_value = avg_temp[temp]
             data.append({"y": high_low[temp], "avg_temp": avg_temp_value, "yy": date_parts[0], "m": int(
-                date_parts[1]), "d": date_parts[2]})             
+                date_parts[1]), "d": date_parts[2]})
     return data
 
 
@@ -131,7 +146,7 @@ def query_garage_open_close():
     data = ""
     open_time = ""
     time_diff = ""
-    
+
     for row in reversed(rows):
         time_diff = ""
         if row[3] == "closed" and open_time != "":
@@ -146,15 +161,3 @@ def query_garage_open_close():
 
         data += "%s %s%s\n" % (str(row[1]), str(row[3]), time_diff)
     return (data)
-
-
-def query_db(sql):
-    conn = sqlite3.connect('/home/pi/db/gdc')
-    try:
-        c = conn.cursor()
-        c.execute(sql)
-        return(c.fetchall())
-    except:
-        return ("ERROR: query_db: sql:%s -- %s", sql,sys.exc_info()[0])
-
-    return None

@@ -2,6 +2,7 @@ import utils as Utils
 import controller as Controller
 import time as time
 
+
 class Door(object):
     def __init__(self, doorId, config):
         self.gpio = None
@@ -15,19 +16,19 @@ class Door(object):
         self.state = None
         self.send_open_im = True
         self.send_open_im_debug = False
-        self.send_open_mqtt= True
-        self.send_close_mqtt= True
+        self.send_open_mqtt = True
+        self.send_close_mqtt = True
         self.tis = {
-            Utils.CLOSED:0,
-            Utils.OPEN:0,
-            Utils.OPENING:0,
-            Utils.CLOSING:0,
-            Utils.STILLOPEN:0,
-            Utils.FORCECLOSE:0
+            Utils.CLOSED: 0,
+            Utils.OPEN: 0,
+            Utils.OPENING: 0,
+            Utils.CLOSING: 0,
+            Utils.STILLOPEN: 0,
+            Utils.FORCECLOSE: 0
         }
 
     def setup(self, gpio, tslo_value):
-        self.setup_gpio(gpio) 
+        self.setup_gpio(gpio)
         self.state = self.get_state_pin()
 
         if self.state == Utils.OPEN:
@@ -53,6 +54,7 @@ class Door(object):
         self.gpio.output(self.relay_pin, True)
 
     """returns OPEN or CLOSED for a given garages door state pin"""
+
     def get_state_pin(self):
         if Utils.isDebugging:
             return self.test_state_pin
@@ -64,6 +66,7 @@ class Door(object):
         return Utils.OPEN
 
     """This gets hit from the web page to open or close garage door"""
+
     def toggle_relay(self):
         if Utils.isDebugging:
             self.test_state_pin = Utils.CLOSED if self.test_state_pin == Utils.OPEN else Utils.OPEN
@@ -72,4 +75,3 @@ class Door(object):
         self.gpio.output(self.relay_pin, False)
         time.sleep(1)
         self.gpio.output(self.relay_pin, True)
-

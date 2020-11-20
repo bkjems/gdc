@@ -69,6 +69,7 @@ TIME_DURATION_UNITS = (
     (SEC,  1)
 )
 
+
 class WEEK_DAYS(Enum):
     # Enum for days of the week.
     Mon = 0
@@ -79,11 +80,14 @@ class WEEK_DAYS(Enum):
     Sat = 5
     Sun = 6
 
+
 def get_time():
     return time.time()
 
+
 def get_date_time():
     return datetime.datetime.now()
+
 
 def get_elapsed_time(total_seconds):
     if total_seconds == 0:
@@ -110,6 +114,7 @@ def get_elapsed_time(total_seconds):
                 _min).zfill(2), "00" if sec == 0 else str(sec).zfill(2)))
     return ', '.join(parts)
 
+
 def is_day_of_week(self, day_of_week_num):
     """Return the day of the week as an integer, where Monday is 0 and Sunday is 6."""
     if self.on_days_of_week == '':
@@ -117,6 +122,7 @@ def is_day_of_week(self, day_of_week_num):
 
     day_of_week_name = WEEK_DAYS(day_of_week_num).name
     return(day_of_week_name in self.on_days_of_week.split(","))
+
 
 def is_time_between(self, curr_datetime_time):
     if self.from_time == '' and self.to_time == '' and self.on_days_of_week == '':
@@ -129,8 +135,10 @@ def is_time_between(self, curr_datetime_time):
 
     return datetime.time(from_hr, from_min) <= curr_datetime_time <= datetime.time(to_hr, to_min)
 
+
 def is_too_early():
     return is_too_early_with_time(Utils.get_date_time().time())
+
 
 def is_too_early_with_time(time_now):
     # When restarting each morning at 4am, don't send init msg if between 3:58 - 4:05am
@@ -138,6 +146,7 @@ def is_too_early_with_time(time_now):
         return False
 
     return(datetime.time(3, 58) <= time_now <= datetime.time(4, 5))
+
 
 def is_time_expired(tis, alert_time, curr_time):
     if alert_time <= 0:
@@ -148,11 +157,13 @@ def is_time_expired(tis, alert_time, curr_time):
     newDateTime = dt_time_in_state + timedelta(seconds=alert_time)
     return curr_time > datetime_to_epoch(newDateTime)
 
+
 def datetime_to_epoch(dt):
     if dt == None:
         return None
 
     return time.mktime(dt.timetuple())  # convert to epoch time
+
 
 def epoch_to_datetime(epoch):
     if epoch == None:
@@ -160,6 +171,7 @@ def epoch_to_datetime(epoch):
 
     # convert time_seconds to datetime
     return datetime.datetime.fromtimestamp(epoch)
+
 
 def modby(mins):
     by = 5
@@ -175,12 +187,14 @@ def modby(mins):
 
     return mins, hr
 
+
 def round_up_string(td_string):
     dt = None
     if td_string != "":
         dt = datetime.datetime.strptime(td_string, Utils.DATEFORMAT)
 
     return round_up_datetime(dt)
+
 
 def round_up_minutes(dt_seconds):
     if dt_seconds == None:
@@ -189,25 +203,33 @@ def round_up_minutes(dt_seconds):
     dt = epoch_to_datetime(dt_seconds)
     return datetime_to_epoch(round_up_datetime(dt))
 
+
 def round_up_datetime(dt):
     if dt == None:
         return None
 
     nm, hr = modby(dt.minute)
-    ft = timedelta(hours=+hr, minutes=+(nm-dt.minute-1), seconds=+(60-dt.second))
+    ft = timedelta(hours=+hr, minutes=+(nm-dt.minute-1),
+                   seconds=+(60-dt.second))
 
     return dt + ft
 
+
 def publish_MQTT(server, topic, msg, username, password):
     if isDebugging:
-        print "calling MQTT - topic: {}, msg: {}, server: {}, username: {}".format(topic, str(msg), server, username)
+        print "calling MQTT - topic: {}, msg: {}, server: {}, username: {}".format(
+            topic, str(msg), server, username)
         return
-    publish.single(topic, str(msg), hostname=server, auth={'username': username, 'password': password})
+    publish.single(topic, str(msg), hostname=server, auth={
+                   'username': username, 'password': password})
+
 
 def get_current_temperature(requests, controller):
-    url = '{}?key={}&q={}'.format("http://api.weatherapi.com/v1/current.json", controller.weather_key, "Riverton")
+    url = '{}?key={}&q={}'.format(
+        "http://api.weatherapi.com/v1/current.json", controller.weather_key, "Riverton")
     data = requests.get(url)
     return data.json()
+
 
 def get_temperature(gpio):
     try:
@@ -216,17 +238,19 @@ def get_temperature(gpio):
             t = t * (9/5.0) + 32  # convert to fahrenheit
         if h is not None and t is not None:
             date_str = Utils.get_date_time().strftime(DATEFORMAT)
-            return "{{ \"date\":\"{0}\", \"temperature_f\":{1:0.1f}, \"humidity\":{2:0.1f} }}".format(date_str,t,h)
+            return "{{ \"date\":\"{0}\", \"temperature_f\":{1:0.1f}, \"humidity\":{2:0.1f} }}".format(date_str, t, h)
     except:
         return("Error get_temperature")
-   
+
     return ""
+
 
 def query_weather_API_by_date(requests, controller, date_value):
     if date_value == None or date_value == "":
         return "invalid date"
     try:
-        url = '{}?key={}&q={}&dt={}'.format(controller.weather_url, controller.weather_key,"Riverton", date_value)
+        url = '{}?key={}&q={}&dt={}'.format(
+            controller.weather_url, controller.weather_key, "Riverton", date_value)
         #print url
         data = requests.get(url)
         json_data = data.json()
@@ -234,11 +258,12 @@ def query_weather_API_by_date(requests, controller, date_value):
         # get todays weather section
         y = json_data["forecast"]["forecastday"][0]["day"]
         day = {"date": date_value, "avghumidity": y["avghumidity"], "avgtemp_f": y["avgtemp_f"],
-                "mintemp_f": y["mintemp_f"], "maxtemp_f": y["maxtemp_f"]}
+               "mintemp_f": y["mintemp_f"], "maxtemp_f": y["maxtemp_f"]}
 
-        # save historic temperatures in sqlite3 
+        # save historic temperatures in sqlite3
         try:
-            Utils.publish_MQTT(controller.mqtt_server, controller.mqtt_topic_day_temperature, str(day), controller.mqtt_username, controller.mqtt_password)
+            Utils.publish_MQTT(controller.mqtt_server, controller.mqtt_topic_day_temperature, str(
+                day), controller.mqtt_username, controller.mqtt_password)
         except Exception as e:
             return("Error publish_MQTT: %s", e)
 
@@ -249,6 +274,8 @@ def query_weather_API_by_date(requests, controller, date_value):
 #
 # query the weather api for historic day temperatures.  Can only go back 7 days
 #
+
+
 def query_weather_API(requests, controller):
     weather_info = {}
     weather_info["weather_temps"] = []
