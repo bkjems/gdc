@@ -16,5 +16,5 @@ This project allows you to monitor and control your garage doors remotely (via t
 * Ability to reset notification with motion detection
 
 Launch at startup
-sudo service gdc stop
-sudo service gdc start
+* sudo service gdc stop
+* sudo service gdc start
