@@ -20,7 +20,6 @@ function getChart() {
                 label: "32 F",
                 labelFontColor: "blue",
                 color: "blue"
-
             }]
         },
         axisX: {
@@ -29,7 +28,7 @@ function getChart() {
                 enabled: true
             },
             reversed: false,
-            interval: 3,
+            interval: 4,
             intervalType: "day",
             labelAutoFit: true,
             valueFormatString: "MMM DD",
@@ -44,8 +43,8 @@ function getChart() {
                 type: "rangeArea",
                 showInLegend: true,
                 indexLabelFontSize: 9,
-                yValueFormatString: "#0.## F",
-                xValueFormatString: "DD MMM YYYY",
+                yValueFormatString: "#0.## °F",
+                xValueFormatString: "DDD. MMM DD YYYY",
                 legendText: "High/Low",
                 color: "rgba(0,135,147,.4)",
                 markerType: "circle",
@@ -72,12 +71,15 @@ function formatState(state, time) {
 };
 
 function click(name) {
-    $.ajax({
-        url: "clk",
-        data: {
-            'id': name
-        }
-    })
+    var r = confirm("Are you sure?");
+    if (r == true) {
+        $.ajax({
+            url: "clk",
+            data: {
+                'id': name
+            }
+        })
+    }
 };
 
 function clickGraph_shed() {
@@ -154,7 +156,7 @@ function clickWeather() {
             $('#spin').hide()
         },
         success: function (data) {
-            $("#json").text(data);
+            $("#log_message").html("<pre>"+data+"</pre>");
             $("#chartContainer").html("");
         }
     })
@@ -184,7 +186,6 @@ function clickGetTemp() {
         success: function (data) {
             $("#log_message").html(data);
             $("#chartContainer").html("");
-            $("#json").text("");
         }
     })
 };
@@ -195,7 +196,16 @@ function clickTemps() {
         success: function (data) {
             $("#log_message").html(data);
             $("#chartContainer").html("");
-            $("#json").text("");
+        }
+    })
+};
+
+function clickOpenCloseLog() {
+    $.ajax({
+        url: "openclose",
+        success: function (data) {
+            $("#log_message").html(data);
+            $("#chartContainer").html("");
         }
     })
 };
@@ -206,6 +216,7 @@ function clickMotionTest() {
         success: function (data) {
             $("#log_message").html(data);
             $("#chartContainer").html("");
+
         }
     })
 };
@@ -216,8 +227,6 @@ function clickCloseAll() {
         success: function (data) {
             $("#log_message").html(data);
             $("#chartContainer").html("");
-            $("#json").text("");
-
         }
     })
 };
@@ -281,7 +290,7 @@ $.ajax({
             var state = data[i][2];
             var time = data[i][3];
             var li = '<li id="' + id + '" data-icon="false">';
-            li = li + '<a href="javascript:click(\'' + id + '\');">';
+            li = li + '<a href="javascript:click(\'' + id+'\');">';
             li = li + '<img src="img/' + state + '.png" />';
             li = li + '<h3>' + name + '</h3>';
             li = li + '<p>' + formatState(state, time) + '</p>';

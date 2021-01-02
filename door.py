@@ -58,10 +58,10 @@ class Door(object):
     def get_state_pin(self):
         if Utils.isDebugging:
             return self.test_state_pin
-        else:
-            rv = self.gpio.input(self.state_pin)
-            if rv == self.state_pin_closed_value:
-                return Utils.CLOSED
+
+        rv = self.gpio.input(self.state_pin)
+        if rv == self.state_pin_closed_value:
+            return Utils.CLOSED
 
         return Utils.OPEN
 

@@ -1,0 +1,14 @@
+[Unit]
+Description=GDC Garage door service
+After=syslog.target multi-user.target
+
+[Service]
+Type=simple
+User=pi
+ExecStart=sudo /usr/bin/python controller.py
+Restart=always
+RestartSec=3
+WorkingDirectory=/home/pi/gdc
+
+[Install]
+WantedBy=multi-user.target

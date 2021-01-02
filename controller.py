@@ -14,6 +14,7 @@ import utils as Utils
 import db_utils as db_Utils
 import door as Doors
 import requests
+import threading
 
 from datetime import timedelta
 from email.mime.text import MIMEText
@@ -53,8 +54,8 @@ class GetTempHandler(Resource):
         json_object = json.loads(temp)
         json_formatted_str = json.dumps(json_object, indent=2)
 
-        current_temp_json = Utils.get_current_temperature(requests, controller)
-        localtime = str(current_temp_json["location"]["localtime"])
+        current_temp_json = Utils.get_current_temperature_from_weatherapi(requests, controller, "Riverton")
+        localtime = str(current_temp_json["current"]["last_updated"])
         feels_like = str(current_temp_json["current"]["feelslike_f"])
         condition = str(current_temp_json["current"]["condition"]["text"])
         icon = str(current_temp_json["current"]["condition"]["icon"])
@@ -68,8 +69,8 @@ class GetTempHandler(Resource):
         locationState = str(current_temp_json["location"]["region"])
         current_temp_json_formatted = json.dumps(current_temp_json, indent=2)
         im = '<img id=\"conditionsImage\" src=\"http:'+icon+'\"/>'
-        curr_weather = '<table><tr><td>{}</td></tr><tr><td><b>{}</b></td></tr><tr><td><h2>{}F </h2></td></tr><tr><td><i>Feels like {}F </i>{}</td><td>{}</td></tr><tr><td>{}mph {}</td><td>Humidity: {}%</td></tr><tr><td>UV: {}</td><td>Visibility: {}miles</td></tr></table>'.format(localtime, locationName+", "+locationState, temp_f, feels_like, condition,im, wind_mph, wind_dir, humidity, uv, vis_miles)
-        return "<html><body>Garage<pre>%s</pre>%s<pre>%s</pre></body></html>" % (json_formatted_str, curr_weather,current_temp_json_formatted)
+        curr_weather = '<table><tr><td>As of {}</td></tr><tr><td><b>{}</b></td></tr><tr><td><h2>{}F </h2></td></tr><tr><td><i>Feels like {}F </i>{}</td><td>{}</td></tr><tr><td>Wind:{}mph {}</td><td>Humidity: {}%</td></tr><tr><td>UV: {}</td><td>Visibility: {}miles</td></tr></table>'.format(localtime, locationName+", "+locationState, temp_f, feels_like, condition,im, wind_mph, wind_dir, humidity, uv, vis_miles)
+        return "<html><body>%s<pre>Garage</pre><pre>%s</pre><pre>Current Weather</pre><pre>%s</pre></body></html>" % (curr_weather,json_formatted_str,current_temp_json_formatted)
 
 class TempsHandler(Resource):
     isLeaf = True
@@ -135,7 +136,7 @@ class ClickWeatherHandler(Resource):
         json_object = json.loads(weather_info)
         json_formatted_str = json.dumps(json_object, indent=2)
         return json_formatted_str
-
+        
 class ClickGraphShedHandler(Resource):
     isLeaf = True
     def __init__ (self, controller):
@@ -161,7 +162,7 @@ class ClickGraphHandler(Resource):
         request.setHeader('Content-Type', 'application/json')
         return json.dumps(data)
 
-class ClickMotionTestHandler(Resource):
+class ClickOpenCloseHandler(Resource):
     isLeaf = True
 
     def __init__ (self, controller):
@@ -169,10 +170,30 @@ class ClickMotionTestHandler(Resource):
         self.controller = controller
 
     def render(self, request):
-        #self.controller.motion('testpin')
         data = db_Utils.query_garage_open_close()
         d = data.replace("<", "&lt")
         return "<html><body><pre>%s</pre></body></html>" % (d)
+
+class ClickMotionTestHandler(Resource):
+    isLeaf = True
+
+    def __init__ (self, controller):
+        Resource.__init__(self)
+        self.controller = controller
+
+    def is_doors_open(self,c):
+        for door in c.doors:
+            if door.get_state_pin() == Utils.OPEN:
+                return True
+        return False
+
+    def render(self, request):
+        msg = "All doors are closed"
+        if self.is_doors_open(self.controller):
+            self.controller.on_motion('testpin')
+            msg = "Motion detected"
+        
+        return "<html><body><pre>%s</pre></body></html>" % (msg)
 
 class ConfigHandler(Resource):
     isLeaf = True
@@ -196,7 +217,6 @@ class UptimeHandler(Resource):
                 contents = f.read().split()
         except:
             return "Cannot open uptime file: /proc/uptime"
-
         return Utils.get_elapsed_time(float(contents[0]))
 
     def render(self, request):
@@ -311,12 +331,13 @@ class Controller(object):
             if str(arg) == 'debug':
                 # ex. python controller.py debug -v
                 Utils.isDebugging = True 
-                self.time_to_report_open = 35 
+                if self.time_to_report_open  > 35:
+                    self.time_to_report_open = 35 
                 self.time_to_report_still_open = 100
                 Utils.gfileCache += "debug"
 
             if str(arg).startswith('port='):
-                self.port = str(sys.argv[2]).split('=')[1]
+                self.port = int((sys.argv[2]).split('=')[1])
                 self.port_secure = self.port
 
         # set up fcache to log last time garage door was opened
@@ -353,9 +374,9 @@ class Controller(object):
         # setup motion sensor
         if self.motion_pin != None and Utils.isDebugging != True:
             gpio.setup(self.motion_pin, gpio.IN)
-            gpio.add_event_detect(self.motion_pin, gpio.RISING, callback=self.motion, bouncetime=300)
+            gpio.add_event_detect(self.motion_pin, gpio.RISING, callback=self.on_motion, bouncetime=300)
             logging.info("Motion pin = %s" % (self.motion_pin))
-
+           
         # setup Doors from config file
         self.doors = [Doors.Door(x, c) for (x, c) in sorted(config['doors'].items())]
         for door in self.doors:
@@ -393,16 +414,24 @@ class Controller(object):
                 return door
         return None
 
+    def resetTimer(self):
+        logging.info("Motion resetting timer")
+        Utils.WAITING = False
+
     """motion detected, reset time_in_state to the current time for all open doors, after the "open" message IM has been send (send=False)"""
-    def motion(self, pin):
+    def on_motion(self, pin):
         if pin != None:
             curr_time = Utils.get_time()
-            for d in self.doors:
-                if d.state == Utils.OPEN and (d.send_open_im == False or d.send_open_im_debug == False):
-                    if Utils.isDebugging:
+            if Utils.WAITING == False:
+                Utils.WAITING = True
+                for d in self.doors:
+                    if d.state == Utils.OPEN and (d.send_open_im == False or d.send_open_im_debug == False):
                         cur_dt = Utils.epoch_to_datetime(curr_time).strftime(Utils.TIMEFORMAT)
                         logging.info("Motion detected, reset %s (%s)" % (d.name, cur_dt))
-                    d.set_open_state(curr_time)
+                        d.set_open_state(curr_time)
+
+                        t = threading.Timer(10.0, self.resetTimer)
+                        t.start()
 
     def set_initial_text_msg(self, door):
         if len(self.initMsg) == 0:
@@ -438,14 +467,18 @@ class Controller(object):
         message = ''
         curr_time = Utils.get_time()        
         if Utils.is_time_expired(door.tis.get(door.state), self.time_to_close, curr_time):
-            return self.door_CLOSED(door) 
+            door.state = Utils.CLOSED 
+            message = self.door_CLOSED(door) 
         return message
 
-    def door_OPEN(self, door):
+    def door_OPEN(self, door, pin_state):
         message = '' 
         curr_time = Utils.get_time()
-        #etime = Utils.elapsed_time(int(curr_time - door.tis.get(door.state))) 
         cur_dt = Utils.epoch_to_datetime(curr_time).strftime(Utils.TIMEFORMAT)
+           
+        if door.send_open_im_debug == True and Utils.isDebugging: 
+            self.logger.info("%s %s(%s)" % (door.name, door.state, pin_state))
+            door.send_open_im_debug = False            
 
         if door.send_open_im == True and Utils.is_time_expired(door.tis.get(door.state), self.time_to_report_open, curr_time):
             door.send_open_im = False
@@ -455,6 +488,7 @@ class Controller(object):
             door.tis[Utils.STILLOPEN] = Utils.round_up_minutes(curr_time)
             message = '%s is still %s at %s' % (door.name, door.state, cur_dt)
 
+        #etime = Utils.elapsed_time(int(curr_time - door.tis.get(door.state))) 
         #if self.time_to_force_close != None and Utils.isTimeExpired(door.tis.get(Utils.FORCECLOSE), self.time_to_force_close, curr_time):
         #    door.tis[Utils.FORCECLOSE] = curr_time
         #    message = '%s force closed %s->%s at %s (%s)' % (door.name, door.state, Utils.CLOSED, cur_dt, etime)
@@ -500,11 +534,7 @@ class Controller(object):
             message = self.door_CLOSING(door)
 
         elif door.state == Utils.OPEN:
-            if door.send_open_im_debug == True and Utils.isDebugging: 
-                self.logger.info("%s %s(%s)" % (door.name, door.state, pin_state))
-                door.send_open_im_debug = False
-            
-            message = self.door_OPEN(door)
+            message = self.door_OPEN(door, pin_state)
 
         if message != "":
             self.logger.info(message)
@@ -639,7 +669,7 @@ class Controller(object):
         return msg
 
     def get_weather(self):
-        logging.info("calling weatherAPI")
+        #logging.info("calling weatherAPI")
         Utils.query_weather_API(requests, controller)
 
     def run(self):
@@ -652,6 +682,7 @@ class Controller(object):
         root.putChild('gettemp', GetTempHandler(self))
         root.putChild('closeall', CloseAllHandler(self))
         root.putChild('clk', ClickHandler(self))
+        root.putChild('openclose', ClickOpenCloseHandler(self))
         root.putChild('mot', ClickMotionTestHandler(self))
         root.putChild('graph', ClickGraphHandler(self))
         root.putChild('graphshed', ClickGraphShedHandler(self))

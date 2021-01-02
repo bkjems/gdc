@@ -18,6 +18,9 @@ gfileCache = 'garageCache'
 isDebugging = False
 temperature_pin = ""
 
+global WAITING
+WAITING = False
+
 global CLOSED
 CLOSED = 'closed'
 
@@ -217,16 +220,16 @@ def round_up_datetime(dt):
 
 def publish_MQTT(server, topic, msg, username, password):
     if isDebugging:
-        print "calling MQTT - topic: {}, msg: {}, server: {}, username: {}".format(
+        print "will call MQTT - topic: {}, msg: {}, server: {}, username: {}".format(
             topic, str(msg), server, username)
-        return
+        #return
     publish.single(topic, str(msg), hostname=server, auth={
                    'username': username, 'password': password})
 
 
-def get_current_temperature(requests, controller):
+def get_current_temperature_from_weatherapi(requests, controller, city):
     url = '{}?key={}&q={}'.format(
-        "http://api.weatherapi.com/v1/current.json", controller.weather_key, "Riverton")
+        "http://api.weatherapi.com/v1/current.json", controller.weather_key, city)
     data = requests.get(url)
     return data.json()
 
