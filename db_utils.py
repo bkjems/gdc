@@ -127,16 +127,18 @@ def query_temperature_data(eventName, controller):
     # add todays avg temperature to db
     Utils.query_weather_API_by_date(requests, controller, curr_date)
 
-    data = []
-    for temp in sorted(high_low.keys()):
-        date_parts = temp.split("-")
+    # create json
+    json_data = []
+    for hl_temps in sorted(high_low.keys()):
+        hl_date = datetime.datetime.strptime(hl_temps, "%Y-%m-%d")
         avg_temp_value = ""
 
-        if temp in avg_temp.keys():
-            avg_temp_value = avg_temp[temp]
-            data.append({"y": high_low[temp], "avg_temp": avg_temp_value, "yy": date_parts[0], "m": int(
-                date_parts[1]), "d": date_parts[2]})
-    return data
+        if hl_temps in avg_temp.keys():
+            avg_temp_value = avg_temp[hl_temps]
+            json_data.append({ "y": high_low[hl_temps], "avg_temp": avg_temp_value, "m": hl_date.month, "d": hl_date.day, 
+                "yy": hl_date.year })
+    return json_data
+
 
 
 def query_garage_open_close():

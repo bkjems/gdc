@@ -15,12 +15,13 @@ import db_utils as db_Utils
 import door as Doors
 import requests
 import threading
+import os
 
 from datetime import timedelta
 from email.mime.text import MIMEText
 from fcache.cache import FileCache
 from twisted.cred import portal
-from twisted.internet import reactor
+from twisted.internet import reactor, protocol
 from twisted.internet import ssl
 from twisted.internet import task
 from twisted.web import server
@@ -295,7 +296,8 @@ class Controller(object):
         self.use_auth = c['use_auth']
         self.use_alerts = c['use_alerts']
         self.motion_pin = c['motion_pin']
-        self.file_name = c['logfile']
+        self.file_name = "/var/log/%s.log" % (os.getcwd().split(os.sep)[-1])
+        
         Utils.temperature_pin = c['temperature_pin']
 
         c = self.config['config']['times']
@@ -337,7 +339,7 @@ class Controller(object):
                 Utils.gfileCache += "debug"
 
             if str(arg).startswith('port='):
-                self.port = int((sys.argv[2]).split('=')[1])
+                self.port = int((arg).split('=')[1])
                 self.port_secure = self.port
 
         # set up fcache to log last time garage door was opened

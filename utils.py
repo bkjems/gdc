@@ -219,13 +219,14 @@ def round_up_datetime(dt):
 
 
 def publish_MQTT(server, topic, msg, username, password):
-    if isDebugging:
-        print "will call MQTT - topic: {}, msg: {}, server: {}, username: {}".format(
-            topic, str(msg), server, username)
+    try:
+        #if isDebugging:
+        print "will call MQTT - topic: {}, msg: {}, server: {}, username: {}".format(topic, str(msg), server, username)
         #return
-    publish.single(topic, str(msg), hostname=server, auth={
-                   'username': username, 'password': password})
-
+        publish.single(topic, str(msg), hostname=server, auth={ 'username': username, 'password': password})
+    except:
+        print("Error publish_MQTT")
+    
 
 def get_current_temperature_from_weatherapi(requests, controller, city):
     url = '{}?key={}&q={}'.format(
@@ -277,8 +278,6 @@ def query_weather_API_by_date(requests, controller, date_value):
 #
 # query the weather api for historic day temperatures.  Can only go back 7 days
 #
-
-
 def query_weather_API(requests, controller):
     weather_info = {}
     weather_info["weather_temps"] = []
