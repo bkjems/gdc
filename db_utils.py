@@ -12,7 +12,7 @@ from time import gmtime
 import requests
 
 
-def build_sql(eventNames, limit, orderby, desc_asc):
+def build_sql(eventNames, limit, orderby, desc_asc, days=0):
     sql = ("SELECT * FROM gdc_data WHERE event=")
     cnt = 0
     for event in eventNames:
@@ -20,6 +20,9 @@ def build_sql(eventNames, limit, orderby, desc_asc):
             sql += " or event="
         cnt += 1
         sql += "\'" + event + "\'"
+        
+    if days != 0:
+        sql += "and _time >= date('now','-"+str(days)+" days')"
 
     sql += " ORDER BY " + orderby + " "
 
@@ -100,7 +103,8 @@ def query_day_temp_data():
 
 
 def query_temperature_data(eventName, controller):
-    sql = build_sql(eventName, 0, "_time", "")
+    sql = build_sql(eventName, 0, "_time", "", 180)
+    #sql = "SELECT * FROM gdc_data WHERE event='shed_temperature' and _time >= date('now','-100 days') ORDER BY _time"
     rows = query_db(sql)
 
     curr_date = Utils.get_date_time().strftime('%Y-%m-%d')
